@@ -23,7 +23,11 @@
     "server:restart": "node scripts/server-control.js restart",
     "user:create": "node scripts/create-user.js",
     "repair:metadata": "node scripts/repair-metadata.js",
-    "install:linux": "sudo bash install.sh"
+    "install:linux": "sudo bash install.sh",
+    "docker:build": "docker build -t inpx-library-server:latest .",
+    "docker:build:nginx": "docker compose -f tools/docker-compose.nginx.yml build",
+    "docker:build:all": "docker build -t inpx-library-server:latest . && docker compose -f tools/docker-compose.nginx.yml build",
+    "docker:buildx": "docker buildx build --platform linux/amd64,linux/arm64 -t inpx-library-server:latest ."
   },
   "dependencies": {
     "7zip-bin": "^5.2.0",

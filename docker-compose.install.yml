@@ -1,0 +1,48 @@
+# ==============================================================================
+# INPX Library Server - Установочный Docker Compose (Готов к запуску)
+# ==============================================================================
+# Быстрый запуск:
+#   docker compose -f docker-compose.install.yml up -d --build
+#
+# После запуска библиотека доступна по адресу:
+#   http://localhost:3000 (или http://IP-вашего-сервера:3000)
+#
+# Первый вход по умолчанию:
+#   Логин:  admin
+#   Пароль: admin (смените в настройках профиля при первом входе)
+# ==============================================================================
+
+services:
+  inpx-library:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: inpx-library-server:latest
+    container_name: inpx-library
+    restart: unless-stopped
+    mem_limit: 4g
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - LIBRARY_ROOT=/library
+      - DATA_DIR=/app/data
+      - SESSION_SECRET=${SESSION_SECRET:-}
+      - EVENTS_STDOUT=true
+    volumes:
+      # Постоянные данные: база SQLite, настройки, кэш обложек
+      - inpx-data:/app/data
+      # Директория с книгами (INPX архивы, FB2, EPUB и др.)
+      # Замените путь слева на вашу реальную папку с книгами:
+      - ${LIBRARY_PATH:-./books}:/library:ro
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--connect-timeout", "3", "--max-time", "8", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 45s
+      retries: 3
+
+volumes:
+  inpx-data:
+    name: inpx-library-data

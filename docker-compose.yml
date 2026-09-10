@@ -1,6 +1,9 @@
 services:
   library:
-    image: habsaec/inpx-library-server:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: inpx-library-server:latest
     container_name: inpx-library
     restart: unless-stopped
     mem_limit: 4g

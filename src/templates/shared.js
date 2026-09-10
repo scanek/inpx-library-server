@@ -462,6 +462,45 @@ export function renderSortControl({ action, sort, order = '', options, query = '
     </form>`;
 }
 
+export function renderViewModeSwitcher({ currentUrl = '', currentMode = 'grid' } = {}) {
+  const isList = currentMode === 'list';
+  let gridHref = '/catalog';
+  let listHref = '/catalog?view=list';
+  try {
+    const base = 'http://localhost';
+    const parsed = new URL(currentUrl || '/catalog', base);
+    const gridParsed = new URL(parsed.toString());
+    gridParsed.searchParams.delete('view');
+    gridHref = gridParsed.pathname + (gridParsed.search ? gridParsed.search : '');
+
+    const listParsed = new URL(parsed.toString());
+    listParsed.searchParams.set('view', 'list');
+    listHref = listParsed.pathname + listParsed.search;
+  } catch {}
+
+  const gridLabel = t('catalog.viewGrid') || 'Сетка';
+  const listLabel = t('catalog.viewList') || 'Список';
+
+  return `
+    <div class="view-mode-toggle" role="group" aria-label="${escapeHtml(t('catalog.viewMode') || 'Вид каталога')}">
+      <a href="${escapeHtml(gridHref)}" class="button view-toggle-btn${!isList ? ' is-active' : ''}" data-view-target="grid" title="${escapeHtml(gridLabel)}" aria-pressed="${!isList ? 'true' : 'false'}">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1"/>
+          <rect x="9" y="1.5" width="5.5" height="5.5" rx="1"/>
+          <rect x="1.5" y="9" width="5.5" height="5.5" rx="1"/>
+          <rect x="9" y="9" width="5.5" height="5.5" rx="1"/>
+        </svg>
+      </a>
+      <a href="${escapeHtml(listHref)}" class="button view-toggle-btn${isList ? ' is-active' : ''}" data-view-target="list" title="${escapeHtml(listLabel)}" aria-pressed="${isList ? 'true' : 'false'}">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+          <rect x="1.5" y="2.5" width="13" height="2.5" rx="0.75"/>
+          <rect x="1.5" y="6.75" width="13" height="2.5" rx="0.75"/>
+          <rect x="1.5" y="11" width="13" height="2.5" rx="0.75"/>
+        </svg>
+      </a>
+    </div>`;
+}
+
 export function renderEventDetailsHtml(details) {
   if (!details) return '';
   const looksLikeTimestamp = (value) => {
@@ -1352,20 +1391,27 @@ function renderBottomNav({ user = null, currentPath = '', isAdmin = false } = {}
   if (isAdmin) return '';
   const path = String(currentPath || '');
   const isAuthed = Boolean(user);
-  const item = (href, label, active) =>
-    `<a class="bottom-nav-item${active ? ' is-active' : ''}" href="${escapeHtml(href)}"><span>${escapeHtml(label)}</span></a>`;
+  const item = (href, label, active, iconSvg) =>
+    `<a class="bottom-nav-item${active ? ' is-active' : ''}" href="${escapeHtml(href)}" aria-current="${active ? 'page' : 'false'}">${iconSvg}<span>${escapeHtml(label)}</span></a>`;
   const homeActive = path === '/' || path === '';
   const catalogActive = path.startsWith('/catalog');
   const favActive = path.startsWith('/favorites');
   const profileActive = path.startsWith('/profile');
   const loginActive = path.startsWith('/login');
+
+  const homeIcon = `<svg class="bottom-nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
+  const catalogIcon = `<svg class="bottom-nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10"/><path d="M6 10h10"/></svg>`;
+  const favIcon = `<svg class="bottom-nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>`;
+  const profileIcon = `<svg class="bottom-nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+  const loginIcon = `<svg class="bottom-nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>`;
+
   return `
     <nav class="bottom-nav" aria-label="${escapeHtml(t('aria.sidebar'))}" data-bottom-nav>
-      ${item('/', t('nav.bottomHome'), homeActive)}
-      ${item('/catalog', t('nav.bottomCatalog'), catalogActive)}
+      ${item('/', t('nav.bottomHome'), homeActive, homeIcon)}
+      ${item('/catalog', t('nav.bottomCatalog'), catalogActive, catalogIcon)}
       ${isAuthed
-      ? `${item('/favorites', t('nav.bottomFavorites'), favActive)}${item('/profile', t('nav.bottomProfile'), profileActive)}`
-      : item('/login', t('nav.bottomLogin'), loginActive)}
+      ? `${item('/favorites', t('nav.bottomFavorites'), favActive, favIcon)}${item('/profile', t('nav.bottomProfile'), profileActive, profileIcon)}`
+      : item('/login', t('nav.bottomLogin'), loginActive, loginIcon)}
     </nav>`;
 }
 

@@ -3,7 +3,7 @@
  */
 // IMPORTANT: Bump this version when deploying new assets to invalidate browser caches
 const CACHE_VERSION = 4;
-const CACHE_NAME = `inpx-v1-051b9195`;
+const CACHE_NAME = `inpx-v1-3a4e1af4`;
 const COVER_CACHE_NAME = 'inpx-covers-v1';
 const MAX_COVER_CACHE_ENTRIES = 500;
 
@@ -18,6 +18,9 @@ const STATIC_ASSETS = [
   '/reader-shared/position-revision.js',
   '/reader-shared/reader-position.js',
   '/reader-shared/suppression-counter.js',
+  '/modules/catalog-view-switcher.js',
+  '/modules/page-transitions.js',
+  '/modules/touch-enhancements.js',
   '/logo.png',
   '/favicon.png',
   '/favicon-192.png',

@@ -7291,4 +7291,23 @@ function initAppPairingUi() {
   });
 }
 
-// PWA: Service Worker registered by pageShell with versioned URL
+// Module integration: load modern modules if not already bundled
+(function initClientModules() {
+  function loadScript(src) {
+    if (document.querySelector(`script[src*="${src}"]`)) return;
+    const s = document.createElement('script');
+    s.src = src;
+    s.defer = true;
+    document.head.appendChild(s);
+  }
+  loadScript('/modules/catalog-view-switcher.js');
+  loadScript('/modules/page-transitions.js');
+  loadScript('/modules/touch-enhancements.js');
+})();
+
+// Re-run key page initializers when seamless ViewTransition navigates to a new page
+document.addEventListener('inpx:page-navigated', () => {
+  initAppPairWidgets();
+  if (typeof initBatchSelectToolbar === 'function') initBatchSelectToolbar();
+});
+

@@ -3,15 +3,18 @@
 
 services:
   app:
-    image: ghcr.io/habsaec/inpx-library-server:latest
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: inpx-library-server:latest
     container_name: inpx-app
     restart: unless-stopped
     environment:
       - NODE_ENV=production
       - PORT=3000
-      - LIBRARY_PATH=/library
-      - SQLITE_PATH=/data
-      - SESSION_SECRET=${SESSION_SECRET:?err}
+      - LIBRARY_ROOT=/library
+      - DATA_DIR=/data
+      - SESSION_SECRET=${SESSION_SECRET:-}
       - ANONYMOUS_DOWNLOAD=true
     volumes:
       - /volume1/books:/library:ro
@@ -28,7 +31,7 @@ services:
     ports:
       - "3000:80"
     volumes:
-      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - nginx-cache:/var/cache/nginx
     networks:
       - inpx-net

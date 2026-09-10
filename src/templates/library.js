@@ -4,7 +4,7 @@
 import {
   escapeHtml, sanitizeHtml, csrfHiddenField, pageShell,
   renderBookGrid, renderFavoriteBookGrid, renderEntityGrid, renderCover,
-  renderPagination, renderSortControl, renderEmptyState,
+  renderPagination, renderSortControl, renderViewModeSwitcher, renderEmptyState,
   renderDownloadMenu, renderBatchDownloadToolbar, renderScopeDownloadMenu,
   renderHomeShelf, renderMiniBookList, renderDiscoveryTiles,
   renderStatsRibbon, renderBookMetaList, renderSkeletonGrid,
@@ -477,6 +477,7 @@ export function renderCatalog({
       <div class="section-title">
         <h2>${escapeHtml(pageHeading)}</h2>
         <div class="actions">
+          ${isBookField ? renderViewModeSwitcher({ currentUrl: catalogPageBase, currentMode: isListView ? 'list' : 'grid' }) : ''}
           ${renderSortControl({
             action: '/catalog',
             sort,
