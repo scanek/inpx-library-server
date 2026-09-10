@@ -5,12 +5,17 @@ on:
     branches: [master, main]
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      platforms:
+        description: 'Target architectures'
+        default: 'linux/amd64'
+        required: false
   release:
     types: [published]
 
 env:
-  DOCKERHUB_REPO: scanek/inpx-library-server
-  GHCR_REPO: ghcr.io/${{ github.repository }}
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-and-push:
@@ -32,24 +37,15 @@ jobs:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Log in to Docker Hub
-        if: "${{ secrets.DOCKERHUB_USERNAME != '' }}"
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ${{ env.GHCR_REPO }}
-            ${{ secrets.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_REPO || '' }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
             type=ref,event=tag
@@ -59,10 +55,11 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ inputs.platforms || 'linux/amd64' }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
 
