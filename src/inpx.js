@@ -2036,8 +2036,26 @@ export function getConfiguredInpxFile() {
   if (config.inpxFile) return config.inpxFile;
   if (config.libraryRoot && fs.existsSync(config.libraryRoot)) {
     try {
-      const found = fs.readdirSync(config.libraryRoot).find(f => f.endsWith('.inpx'));
-      if (found) return path.join(config.libraryRoot, found);
+      const entries = fs.readdirSync(config.libraryRoot);
+      // 1. Ищем в корне
+      const inpxFiles = entries.filter((f) => /\.inpx$/i.test(f));
+      if (inpxFiles.length) {
+        const local = inpxFiles.find((f) => /_local\.inpx$/i.test(f));
+        return path.join(config.libraryRoot, local || inpxFiles[0]);
+      }
+      // 2. Ищем в подпапках первого уровня (например /library/inpx/, /library/metadata/)
+      for (const entry of entries) {
+        const sub = path.join(config.libraryRoot, entry);
+        try {
+          if (fs.statSync(sub).isDirectory()) {
+            const subEntries = fs.readdirSync(sub).filter((f) => /\.inpx$/i.test(f));
+            if (subEntries.length) {
+              const local = subEntries.find((f) => /_local\.inpx$/i.test(f));
+              return path.join(sub, local || subEntries[0]);
+            }
+          }
+        } catch {}
+      }
     } catch {}
   }
   return '';
@@ -2045,7 +2063,20 @@ export function getConfiguredInpxFile() {
 
 export function getLibraryRoot() {
   const inpx = getConfiguredInpxFile();
-  if (inpx) return path.dirname(inpx);
+  if (inpx) {
+    const inpxDir = path.dirname(inpx);
+    if (config.libraryRoot) {
+      const resolvedLibRoot = path.resolve(config.libraryRoot);
+      const resolvedInpxDir = path.resolve(inpxDir);
+      if (resolvedInpxDir.startsWith(resolvedLibRoot) && resolvedInpxDir !== resolvedLibRoot) {
+        try {
+          const rootHasArchives = fs.readdirSync(resolvedLibRoot).some((f) => /\.(zip|7z)$/i.test(f));
+          if (rootHasArchives) return config.libraryRoot;
+        } catch {}
+      }
+    }
+    return inpxDir;
+  }
   return config.libraryRoot;
 }
 
