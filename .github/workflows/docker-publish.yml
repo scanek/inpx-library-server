@@ -37,21 +37,31 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log in to Docker Hub
-        if: "${{ env.DOCKERHUB_USER != '' }}"
-        env:
-          DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+        if: "${{ secrets.DOCKERHUB_USERNAME != '' }}"
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Determine Docker images
+        id: images
+        env:
+          DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          IMAGES="${{ env.GHCR_REPO }}"
+          if [ -n "$DOCKERHUB_USER" ]; then
+            IMAGES="${IMAGES}
+          ${{ env.DOCKERHUB_REPO }}"
+          fi
+          echo "list<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$IMAGES" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: |
-            ${{ env.GHCR_REPO }}
-            ${{ env.DOCKERHUB_REPO }}
+          images: ${{ steps.images.outputs.list }}
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
             type=ref,event=tag

@@ -1,6 +1,6 @@
 services:
   library:
-    image: scanek/inpx-library-server:latest
+    image: ghcr.io/scanek/inpx-library-server:latest
     container_name: inpx-library
     restart: unless-stopped
     ports:
