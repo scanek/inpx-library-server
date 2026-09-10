@@ -12,8 +12,8 @@ if ! command -v docker &> /dev/null; then
   exit 1
 fi
 
-echo "1. Building Standalone Image (inpx-library-server:latest)..."
-docker build -t inpx-library-server:latest .
+echo "1. Building Standalone Image (scanek/inpx-library-server:latest)..."
+docker build -t scanek/inpx-library-server:latest .
 echo "[OK] Standalone image built successfully."
 echo ""
 

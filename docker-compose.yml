@@ -1,31 +1,20 @@
 services:
   library:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: habsaec/inpx-library-server:latest
+    image: scanek/inpx-library-server:latest
     container_name: inpx-library
     restart: unless-stopped
     ports:
       - "3025:3000"
     volumes:
-      # БД, пользователи, прогресс чтения, обложки и настройки (НЕ удалять, данные сохраняются):
+      - app-code:/app
       - app-data:/app/data
-      # Коллекция книг (библиотека):
       - /srv/dev-disk-by-uuid-41c6c016-5589-494c-848a-04864dc7beb2/fb2.flibusta.lib.rus.ec.7z:/library:ro
-      # ПРИМЕЧАНИЕ: app-code:/app намеренно исключен, чтобы новый код из собранного
-      # образа не перекрывался устаревшими файлами из старого тома app-code.
     environment:
       - PORT=3000
       - LIBRARY_ROOT=/library
-      - DATA_DIR=/app/data
-    healthcheck:
-      test: ["CMD", "curl", "-fsS", "--connect-timeout", "3", "--max-time", "8", "http://127.0.0.1:3000/health"]
-      interval: 30s
-      timeout: 10s
-      start_period: 30s
-      retries: 3
 
 volumes:
+  app-code:
   app-data:
+
 

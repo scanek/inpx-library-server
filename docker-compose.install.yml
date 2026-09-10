@@ -17,7 +17,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: inpx-library-server:latest
+    image: scanek/inpx-library-server:latest
     container_name: inpx-library
     restart: unless-stopped
     mem_limit: 4g

@@ -14,8 +14,8 @@ if %errorlevel% neq 0 (
   exit /b 1
 )
 
-echo 1. Building Standalone Image (inpx-library-server:latest)...
-docker build -t inpx-library-server:latest .
+echo 1. Building Standalone Image (scanek/inpx-library-server:latest)...
+docker build -t scanek/inpx-library-server:latest .
 if %errorlevel% neq 0 (
   echo [ERROR] Standalone image build failed!
   pause
