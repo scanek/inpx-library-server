@@ -3,44 +3,29 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: inpx-library-server:latest
+    image: habsaec/inpx-library-server:latest
     container_name: inpx-library
     restart: unless-stopped
-    mem_limit: 4g
-    network_mode: "bridge"
     ports:
-      - "3000:3000"
+      - "3025:3000"
     volumes:
-      # Код и node_modules в именованном томе (в UI Synology раздел «Тома» может отсутствовать —
-      # том всё равно есть; смотреть: SSH → docker volume ls).
-      - app-code:/app
-      # БД, кэш, настройки — именованный том (создаётся автоматически).
-      # Порядок строк важен: эта строка должна быть ПОСЛЕ app-code:/app
-      # - app-data:/app/data
-      # Альтернатива для Synology: bind-mount в видимую папку File Station.
-      # Замените строку выше (app-data:/app/data) на:
-      - /volume1/docker/inpx-library-data:/app/data
-      # Папку нужно создать заранее: mkdir -p /volume1/docker/inpx-library-data
-      # - /путь/к библиотеке:/library:ro
-      # Дополнительные источники книг: монтируйте папки в /sources/*
-      # и добавьте их через админку (Источники книг → Добавить → тип «Папка»).
-      # Пример:
-      # - /volume1/homes/username:/sources/home:ro
-      # - /home/user/books:/sources/books:ro
+      # БД, пользователи, прогресс чтения, обложки и настройки (НЕ удалять, данные сохраняются):
+      - app-data:/app/data
+      # Коллекция книг (библиотека):
+      - /srv/dev-disk-by-uuid-41c6c016-5589-494c-848a-04864dc7beb2/fb2.flibusta.lib.rus.ec.7z:/library:ro
+      # ПРИМЕЧАНИЕ: app-code:/app намеренно исключен, чтобы новый код из собранного
+      # образа не перекрывался устаревшими файлами из старого тома app-code.
     environment:
       - PORT=3000
       - LIBRARY_ROOT=/library
-      # SESSION_SECRET генерируется автоматически при первом запуске.
-      # Для явного задания раскомментируйте и укажите надёжный ключ (минимум 32 символа):
-      # - SESSION_SECRET=your-strong-random-secret-here
+      - DATA_DIR=/app/data
     healthcheck:
-      # curl вместо node: на Synology проверка через Node часто >5s и падает по таймауту
       test: ["CMD", "curl", "-fsS", "--connect-timeout", "3", "--max-time", "8", "http://127.0.0.1:3000/health"]
       interval: 30s
       timeout: 10s
-      start_period: 60s
+      start_period: 30s
       retries: 3
 
 volumes:
-  app-code:
   app-data:
+
