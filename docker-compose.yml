@@ -4,17 +4,10 @@ services:
     container_name: inpx-library
     restart: unless-stopped
     ports:
-      - "3025:3000"
+      - "3000:3000"
     volumes:
-      - app-code:/app
-      - app-data:/app/data
-      - /srv/dev-disk-by-uuid-41c6c016-5589-494c-848a-04864dc7beb2/fb2.flibusta.lib.rus.ec.7z:/library:ro
+      - ./data:/app/data
+      - /path/to/books:/library:ro
     environment:
       - PORT=3000
       - LIBRARY_ROOT=/library
-
-volumes:
-  app-code:
-  app-data:
-
-

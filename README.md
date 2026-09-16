@@ -7,10 +7,25 @@
   <img src="https://img.shields.io/badge/node-%3E%3D20-9a8e7e?style=flat-square&labelColor=1e1a16" alt="Node.js 20+">
   <img src="https://img.shields.io/badge/docker-ready-7a5a28?style=flat-square&labelColor=1e1a16" alt="Docker ready">
   <img src="https://img.shields.io/badge/OPDS-1.x-3d4a5c?style=flat-square&labelColor=1e1a16" alt="OPDS 1.x">
-  <img src="https://img.shields.io/badge/version-2.3.1-a1671b?style=flat-square&labelColor=1e1a16" alt="Version 2.3.1">
+  <img src="https://img.shields.io/badge/version-2.6.2-a1671b?style=flat-square&labelColor=1e1a16" alt="Version 2.6.2">
 </p>
 
 **INPX Library Server** — self-hosted веб-сервер для электронных библиотек на базе INPX/FB2. Каталог, поиск, чтение в браузере, OPDS для KOReader и отправка книг на Kindle/Kobo по почте — на NAS, Raspberry Pi или обычном ПК.
+
+---
+
+## Ключевые улучшения и оптимизации
+
+- ⚡ **Новый компактный режим («Список» / List View)**: удобный переключатель отображения «Сетка» 🔲 / «Список» ☰. Снижает нагрузку на DOM и процессор устройства в 2–3 раза. Плавный скролл длинных каталогов (сотни книг) без лагов даже на слабых устройствах и E-Ink читалках.
+- ⚡ **Действия в 1 клик прямо из списка**: кнопки «Читать» и «Скачать FB2/EPUB» доступны сразу в строке книги — без необходимости переходить на отдельную страницу.
+- ⚡ **Бесшовные переходы (View Transitions API)**: мгновенная смена страниц каталога без мерцания и белых вспышек; плавность работы сопоставима с нативным мобильным приложением.
+- 📱 **Эргономичная Touch-навигация**: обновленный нижний бар для смартфонов с векторными иконками, увеличенными областями касания (стандарт 48px) и поддержкой `safe-area-inset` для безрамочных экранов.
+- 📚 **«Всеядная» авто-детекция раздач (RuTracker / любые коллекции)**:
+  - Автоматический поиск `.inpx` файлов в любых подпапках раздачи.
+  - Нечувствительность к регистру (`.inpx` / `.INPX`).
+  - Приоритет локальных баз (`_local.inpx`).
+  - Полная поддержка архивов `.zip` и `.7z`, а также подтягивание обложек (`covers/`) и описаний (`annotations/`).
+- 🐳 **Готовые Docker-образы в GHCR**: автоматический CI/CD и публикация multi-arch образов (`ghcr.io/scanek/inpx-library-server:latest`). Очищенный `docker-compose.yml` без лишних конфликтующих томов.
 
 ---
 
@@ -53,9 +68,9 @@
 
 ### Windows
 
-1. Скачайте [релиз ZIP](https://github.com/Habsaec/inpx-library-server/releases/latest) и распакуйте **или** клонируйте:
+1. Скачайте [релиз ZIP](https://github.com/scanek/inpx-library-server/releases/latest) и распакуйте **или** клонируйте:
    ```bash
-   git clone https://github.com/Habsaec/inpx-library-server.git
+   git clone https://github.com/scanek/inpx-library-server.git
    cd inpx-library-server
    ```
 2. Запустите **`install.cmd`** — скачает портативный Node.js и установит зависимости (включая конвертер).
@@ -71,7 +86,7 @@
 ### Linux (Debian / Ubuntu / Raspbian / OpenMediaVault)
 
 ```bash
-git clone https://github.com/Habsaec/inpx-library-server.git
+git clone https://github.com/scanek/inpx-library-server.git
 cd inpx-library-server
 chmod +x install.sh start.sh stop.sh restart.sh
 sudo ./install.sh    # Node.js, зависимости; предложит systemd
@@ -98,17 +113,16 @@ sudo ./install.sh    # нужны Xcode Command Line Tools и Node (Homebrew и�
 ### Docker (готовый образ)
 
 ```bash
-docker pull habsaec/inpx-library-server:latest
+docker pull ghcr.io/scanek/inpx-library-server:latest
 
 docker run -d \
   --name inpx-library \
   --restart unless-stopped \
   -p 3000:3000 \
-  -v inpx-app:/app \
   -v inpx-data:/app/data \
   -v /path/to/library:/library:ro \
   -e LIBRARY_ROOT=/library \
-  habsaec/inpx-library-server:latest
+  ghcr.io/scanek/inpx-library-server:latest
 ```
 
 Откройте http://localhost:3000. Доп. источники:
@@ -131,36 +145,31 @@ docker run -d --name inpx-library -p 3000:3000 \
 ```
 
 <details>
-<summary><strong>Docker Compose (пример для ПК)</strong></summary>
+<summary><strong>Docker Compose (рекомендуемый запуск)</strong></summary>
 
-Можно использовать образ с Docker Hub. Пример:
+В корне репозитория уже есть готовый `docker-compose.yml`:
 
 ```yaml
 services:
   library:
-    image: habsaec/inpx-library-server:latest
+    image: ghcr.io/scanek/inpx-library-server:latest
     container_name: inpx-library
     restart: unless-stopped
     ports:
       - "3000:3000"
     volumes:
-      - app-code:/app
-      - app-data:/app/data
+      - ./data:/app/data
       - /path/to/library:/library:ro
     environment:
       - PORT=3000
       - LIBRARY_ROOT=/library
-
-volumes:
-  app-code:
-  app-data:
 ```
 
+Запуск / обновление:
 ```bash
+docker compose pull
 docker compose up -d
 ```
-
-`docker compose down -v` удалит данные в именованных томах. Для Synology удобнее готовый `docker-compose.yml` в корне репозитория (см. ниже).
 </details>
 
 <details>
@@ -168,12 +177,12 @@ docker compose up -d
 
 В репозитории уже есть `docker-compose.yml` под Synology:
 
-- образ: `habsaec/inpx-library-server:latest`
+- образ: `ghcr.io/scanek/inpx-library-server:latest`
 - порт **3000** (открывайте `http://NAS-IP:3000`)
 - данные: bind-mount `/volume1/docker/inpx-library-data` → `/app/data`
 
 1. Создайте папку данных: `mkdir -p /volume1/docker/inpx-library-data`
-2. В compose раскомментируйте и укажите том с книгами, например:
+2. В compose укажите том с книгами, например:
    ```yaml
    - /volume1/books/library:/library:ro
    ```
