@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/node-%3E%3D20-9a8e7e?style=flat-square&labelColor=1e1a16" alt="Node.js 20+">
   <img src="https://img.shields.io/badge/docker-ready-7a5a28?style=flat-square&labelColor=1e1a16" alt="Docker ready">
   <img src="https://img.shields.io/badge/OPDS-1.x-3d4a5c?style=flat-square&labelColor=1e1a16" alt="OPDS 1.x">
-  <img src="https://img.shields.io/badge/version-2.6.3-a1671b?style=flat-square&labelColor=1e1a16" alt="Version 2.6.3">
+  <img src="https://img.shields.io/badge/version-2.6.4-a1671b?style=flat-square&labelColor=1e1a16" alt="Version 2.6.4">
 </p>
 
 **INPX Library Server** — self-hosted веб-сервер для электронных библиотек на базе INPX/FB2. Каталог, поиск, чтение в браузере, OPDS для KOReader и отправка книг на Kindle/Kobo по почте — на NAS, Raspberry Pi или обычном ПК.
