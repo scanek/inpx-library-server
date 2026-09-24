@@ -21,7 +21,7 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
@@ -61,5 +61,14 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Upload release zip asset
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ZIP_NAME="inpx-library-server-${{ github.event.release.tag_name }}.zip"
+          git archive --format=zip --output="$ZIP_NAME" HEAD
+          gh release upload "${{ github.event.release.tag_name }}" "$ZIP_NAME" --clobber
 
 

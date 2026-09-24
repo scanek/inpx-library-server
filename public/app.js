@@ -6406,6 +6406,13 @@ function attachAddSourceForm() {
           ${escapeHtml(uiT('app.adminInpxChooseMethod'))}
         </p>
         <div style="display:flex;flex-direction:column;gap:12px">
+          ${multiple ? `
+          <button type="button" data-choice="all-inpx" style="text-align:left;padding:12px 16px;border-color:var(--accent)">
+            <strong style="color:var(--accent)">➕ ${escapeHtml(uiT('app.adminInpxAddAll') || `Добавить сразу все базы (${inpxFiles.length} шт.)`)}</strong>
+            <div class="muted" style="font-size:.85em;margin-top:4px">
+              ${escapeHtml(uiT('app.adminInpxAddAllDesc') || 'Создаст отдельные источники для каждого файла индекса (FB2, EPUB, Либрусек и др.)')}
+            </div>
+          </button>` : ''}
           <button type="button" data-choice="inpx" style="text-align:left;padding:12px 16px">
             <strong>${escapeHtml(uiT('app.adminInpxChoiceInpxTitle'))}</strong>
             <div class="muted" style="font-size:.85em;margin-top:4px">
@@ -6425,6 +6432,34 @@ function attachAddSourceForm() {
     const modal = openModal(html);
     const panel = modal.overlay.querySelector('.modal-panel');
 
+    const allBtn = panel.querySelector('[data-choice="all-inpx"]');
+    if (allBtn) {
+      allBtn.addEventListener('click', async () => {
+        modal.forceClose();
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="btn-spinner"></span>' + escapeHtml(uiT('app.adminAddingSource'));
+        try {
+          for (const f of inpxFiles) {
+            const rawBase = f.split(/[/\\]/).pop().replace(/\.inpx$/i, '');
+            let label = rawBase;
+            if (/fb2/i.test(rawBase)) label = 'FB2';
+            else if (/epub/i.test(rawBase)) label = 'EPUB';
+            else if (/lib\.?rus/i.test(rawBase)) label = 'Либрусек';
+            else if (/usr/i.test(rawBase)) label = 'User';
+            const subSourceName = inpxFiles.length > 1 ? `${name} (${label})` : name;
+            await addSource(subSourceName, 'inpx', f);
+          }
+          window.location.reload();
+        } catch (err) {
+          showToast(uiT('app.errorPrefix') + ' ' + err.message, 'error');
+          window.location.reload();
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = escapeHtml(uiT('app.adminAddBtn'));
+        }
+      });
+    }
+
     panel.querySelector('[data-choice="inpx"]').addEventListener('click', async () => {
       const selectEl = panel.querySelector('#inpx-file-choice');
       const chosenInpx = selectEl ? selectEl.value : inpxFiles[0];
@@ -6440,6 +6475,8 @@ function attachAddSourceForm() {
     });
 
     panel.querySelector('[data-choice="folder"]').addEventListener('click', async () => {
+      const warnMsg = uiT('app.adminFolderConfirm7zWarn') || 'Внимание: в режиме «Папка» сервер будет распаковывать метаданные каждой книги из архивов, что может занять много часов. Для готовых библиотек рекомендуется режим INPX. Всё равно продолжить?';
+      if (!(await confirmAction(warnMsg, { danger: true }))) return;
       modal.forceClose();
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<span class="btn-spinner"></span>' + escapeHtml(uiT('app.adminAddingSource'));
