@@ -6384,10 +6384,15 @@ function attachAddSourceForm() {
   });
 
   function showInpxChoiceModal(name, folderPath, inpxFiles) {
-    const inpxList = inpxFiles.map((f) => {
-      const base = f.split(/[/\\]/).pop();
-      return `<li style="margin:4px 0"><code style="font-size:.9em">${escapeHtml(base)}</code></li>`;
-    }).join('');
+    const multiple = inpxFiles.length > 1;
+    const inpxSelect = multiple
+      ? `<label style="display:block;margin:0 0 14px;font-size:.9em">
+           <span style="font-weight:600;display:block;margin-bottom:6px">${escapeHtml(uiT('app.adminInpxSelectFile') || 'Выберите файл индекса:')}</span>
+           <select id="inpx-file-choice" style="width:100%;padding:8px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg-input);color:inherit">
+             ${inpxFiles.map((f) => `<option value="${escapeHtml(f)}">${escapeHtml(f.split(/[/\\]/).pop())}</option>`).join('')}
+           </select>
+         </label>`
+      : `<ul style="margin:0 0 16px;padding-left:20px">${inpxFiles.map((f) => `<li style="margin:4px 0"><code style="font-size:.9em">${escapeHtml(f.split(/[/\\]/).pop())}</code></li>`).join('')}</ul>`;
 
     const html = `
       <button class="modal-close" aria-label="${escapeHtml(uiT('reader.close'))}">&times;</button>
@@ -6396,7 +6401,7 @@ function attachAddSourceForm() {
         <p style="margin:0 0 8px;color:var(--text-secondary)">
           ${escapeHtml(uiT('app.adminInpxFoundIntro'))}
         </p>
-        <ul style="margin:0 0 16px;padding-left:20px">${inpxList}</ul>
+        ${inpxSelect}
         <p style="margin:0 0 16px;color:var(--text-secondary);font-size:.95em">
           ${escapeHtml(uiT('app.adminInpxChooseMethod'))}
         </p>
@@ -6421,11 +6426,13 @@ function attachAddSourceForm() {
     const panel = modal.overlay.querySelector('.modal-panel');
 
     panel.querySelector('[data-choice="inpx"]').addEventListener('click', async () => {
+      const selectEl = panel.querySelector('#inpx-file-choice');
+      const chosenInpx = selectEl ? selectEl.value : inpxFiles[0];
       modal.forceClose();
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<span class="btn-spinner"></span>' + escapeHtml(uiT('app.adminAddingSource'));
       try {
-        const result = await addSource(name, 'inpx', inpxFiles[0]);
+        const result = await addSource(name, 'inpx', chosenInpx);
         if (result.ok) { window.location.reload(); return; }
         showToast(result.error || uiT('app.adminAddFail'), 'error');
       } catch (err) { showToast(uiT('app.errorPrefix') + ' ' + err.message, 'error'); }

@@ -2084,7 +2084,33 @@ export function getSourceRoot(sourceId) {
   if (!sourceId) return getLibraryRoot();
   const source = getSourceById(sourceId);
   if (!source) return getLibraryRoot();
-  if (source.type === 'inpx') return path.dirname(source.path);
+  if (source.type === 'inpx') {
+    const inpxDir = path.dirname(source.path);
+    if (config.libraryRoot) {
+      const resolvedLibRoot = path.resolve(config.libraryRoot);
+      const resolvedInpxDir = path.resolve(inpxDir);
+      if (resolvedInpxDir.startsWith(resolvedLibRoot) && resolvedInpxDir !== resolvedLibRoot) {
+        return resolvedLibRoot;
+      }
+    }
+    try {
+      const inpxDirHasArchives = fs.readdirSync(inpxDir).some((f) => /\.(zip|7z)$/i.test(f));
+      if (!inpxDirHasArchives) {
+        const parentDir = path.dirname(inpxDir);
+        if (fs.existsSync(parentDir)) {
+          const parentEntries = fs.readdirSync(parentDir);
+          const parentHasArchives = parentEntries.some((f) => /\.(zip|7z)$/i.test(f));
+          if (parentHasArchives) return parentDir;
+          // Также проверяем, есть ли подпапки в parentDir (например fb2/, archives/)
+          const parentHasSubdirs = parentEntries.some((f) => {
+            try { return fs.statSync(path.join(parentDir, f)).isDirectory(); } catch { return false; }
+          });
+          if (parentHasSubdirs) return parentDir;
+        }
+      }
+    } catch {}
+    return inpxDir;
+  }
   return source.path;
 }
 

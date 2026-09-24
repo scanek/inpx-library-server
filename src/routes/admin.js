@@ -365,9 +365,49 @@ export function registerAdminRoutes(app, deps) {
       if (!stat.isDirectory()) {
         return res.json({ ok: false, code: ApiErrorCode.PROBE_PATH_INVALID, error: t('admin.probe.pathInvalid') });
       }
+      const inpxFiles = [];
       const entries = fs.readdirSync(resolvedPath);
-      const inpxNames = entries.filter((e) => e.toLowerCase().endsWith('.inpx'));
-      return res.json({ ok: true, exists: true, isFile: false, isInpx: false, inpxFiles: inpxNames.map((e) => path.join(resolvedPath, e)) });
+      // 1. Корень папки
+      for (const e of entries) {
+        if (e.toLowerCase().endsWith('.inpx')) {
+          inpxFiles.push(path.join(resolvedPath, e));
+        }
+      }
+      // 2. Подпапки (1-2 уровня вглубь: inpx/, metadata/, FLibrary/ и т.д.)
+      for (const e of entries) {
+        const sub = path.join(resolvedPath, e);
+        try {
+          if (fs.statSync(sub).isDirectory()) {
+            const subEntries = fs.readdirSync(sub);
+            for (const se of subEntries) {
+              if (se.toLowerCase().endsWith('.inpx')) {
+                inpxFiles.push(path.join(sub, se));
+              }
+              const sub2 = path.join(sub, se);
+              try {
+                if (fs.statSync(sub2).isDirectory()) {
+                  const sub2Entries = fs.readdirSync(sub2);
+                  for (const s2e of sub2Entries) {
+                    if (s2e.toLowerCase().endsWith('.inpx')) {
+                      inpxFiles.push(path.join(sub2, s2e));
+                    }
+                  }
+                }
+              } catch {}
+            }
+          }
+        } catch {}
+      }
+
+      // Приоритет файлам _local.inpx, затем по алфавиту
+      inpxFiles.sort((a, b) => {
+        const aLocal = /_local\.inpx$/i.test(a) ? 0 : 1;
+        const bLocal = /_local\.inpx$/i.test(b) ? 0 : 1;
+        if (aLocal !== bLocal) return aLocal - bLocal;
+        return a.localeCompare(b);
+      });
+
+      return res.json({ ok: true, exists: true, isFile: false, isInpx: false, inpxFiles });
     } catch {
       return res.json({ ok: false, code: ApiErrorCode.PROBE_PATH_UNREADABLE, error: t('admin.probe.pathUnreadable') });
     }
