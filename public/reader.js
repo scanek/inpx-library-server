@@ -4034,8 +4034,39 @@ import {
       return;
     }
 
-    const res = await fetch(url, { credentials: 'same-origin' });
+    let res;
+    let isFromOfflineCache = false;
+    try {
+      res = await fetch(url, { credentials: 'same-origin' });
+    } catch (fetchErr) {
+      if (typeof caches !== 'undefined') {
+        const cached = await caches.match(url, { cacheName: 'inpx-books-v1' })
+          || await caches.match(new URL(url, location.origin).pathname, { cacheName: 'inpx-books-v1' });
+        if (cached) {
+          res = cached;
+          isFromOfflineCache = true;
+        }
+      }
+      if (!res) throw fetchErr;
+    }
     if (!res.ok) throw new Error(rtp('readerJs.loadError', { status: res.status }));
+    if (!isFromOfflineCache && typeof caches !== 'undefined' && res.clone) {
+      caches.open('inpx-books-v1').then((c) => c.put(url, res.clone())).catch(() => {});
+    }
+
+    const offlineBadge = document.getElementById('offline-badge');
+    const updateOfflineStatus = () => {
+      if (!offlineBadge) return;
+      if (!navigator.onLine || isFromOfflineCache) {
+        offlineBadge.style.display = 'inline-flex';
+      } else {
+        offlineBadge.style.display = 'none';
+      }
+    };
+    window.addEventListener('online', () => { isFromOfflineCache = false; updateOfflineStatus(); });
+    window.addEventListener('offline', updateOfflineStatus);
+    updateOfflineStatus();
+
     const buffer = await res.arrayBuffer();
     const effectiveExt = await sniffBookExt(buffer, bookExt);
     effectiveBookExt = effectiveExt;

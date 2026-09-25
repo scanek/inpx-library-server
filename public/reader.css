@@ -130,9 +130,16 @@ body.chrome-pinned.chrome-hidden .reader-book-pages{
 .tb-tts-stop[hidden]{display:none !important}
 .tb-tts-skip svg{fill:currentColor;stroke:none}
 .tb-btn .tts-main-icon .tts-main-path{fill:currentColor;stroke:none}
-.tb-meta{display:flex;flex-direction:column;min-width:0;gap:1px}
+.tb-meta{display:flex;flex-direction:row;align-items:center;min-width:0;gap:6px}
 .tb-kicker{display:none}
 .tb-title{font-weight:500;opacity:.85;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;letter-spacing:-.01em}
+.tb-offline-badge{
+  display:none;align-items:center;gap:3px;
+  font-size:11px;font-weight:600;line-height:1;
+  padding:2px 6px;border-radius:4px;
+  background:rgba(234,88,12,0.18);color:#ea580c;
+  user-select:none;flex-shrink:0;
+}
 
 .tb-progress{font-size:11px;opacity:.4;font-variant-numeric:tabular-nums;font-weight:500;min-width:30px;text-align:center}
 .tb-sep{width:1px;height:14px;background:var(--r-border);margin:0 4px;flex-shrink:0}

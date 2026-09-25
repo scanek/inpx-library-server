@@ -1240,7 +1240,7 @@ export function renderAdminSources({ user, stats, indexStatus, sources = [], fla
 
   const sourceRows = sources.map((s) => `
     <tr data-source-id="${s.id}" data-source-path="${escapeHtml(s.path)}">
-      <td data-label="${escapeHtml(t('admin.sources.thType'))}">${typeBadge(s.type)}</td>
+      <td data-label="${escapeHtml(t('admin.sources.thType'))}">${typeBadge(s.type)}${s.type === 'folder' && s.fast_scan ? ` <span class="badge" style="background:rgba(234,88,12,0.15);color:#ea580c;font-size:0.75em" title="${escapeHtml(t('admin.sources.fastScanHint'))}">⚡ ${escapeHtml(t('admin.sources.fastScanBadge'))}</span>` : ''}</td>
       <td data-label="${escapeHtml(t('admin.sources.thName'))}">
         <strong data-source-name="${s.id}">${escapeHtml(s.name)}</strong>
         <div style="margin-top:4px">
@@ -1323,6 +1323,13 @@ export function renderAdminSources({ user, stats, indexStatus, sources = [], fla
           <label for="source-path">${escapeHtml(t('admin.sources.path'))}</label>
           <input id="source-path" name="path" placeholder="${escapeHtml(t('admin.sources.placeholderPath'))}" autocomplete="off" required>
           <span class="admin-field-hint">${escapeHtml(t('admin.sources.pathHint'))}</span>
+        </div>
+        <div class="admin-field-group" style="margin-top:6px">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:normal">
+            <input type="checkbox" id="source-fast-scan" name="fast_scan" value="1">
+            <span>⚡ ${escapeHtml(t('admin.sources.fastScanLabel'))}</span>
+          </label>
+          <span class="admin-field-hint">${escapeHtml(t('admin.sources.fastScanHint'))}</span>
         </div>
         <div class="admin-actions-row">
           <button type="submit" id="add-source-btn">${escapeHtml(t('admin.sources.addBtn'))}</button>

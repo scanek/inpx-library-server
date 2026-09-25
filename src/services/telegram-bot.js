@@ -1537,6 +1537,41 @@ async function doDownload(chatId, dlKey, cbId) {
   }
 }
 
+/**
+ * Отправляет файл книги напрямую в чат Telegram (для веб-интерфейса «Отправить в Telegram»).
+ */
+export async function sendBookFileToChat(chatId, bookId, format = null) {
+  const cfg = resolveTelegramRuntimeConfig();
+  if (!cfg.enabled || !cfg.token) {
+    throw new Error('Telegram-бот не настроен или отключён');
+  }
+  const book = getBookById(bookId);
+  if (!book) {
+    throw new Error('Книга не найдена');
+  }
+  return withDownloadLimit(async () => {
+    const targetFormat = format || String(book.ext || 'fb2').replace(/^\./, '').toLowerCase();
+    const dl = await resolveDownload(book, targetFormat, { skipFb2DeliveryProcessing: true });
+    let buffer;
+    if (dl.content) {
+      buffer = dl.content;
+    } else if (dl.filePath) {
+      buffer = await fs.readFile(dl.filePath);
+    } else {
+      throw new Error('Пустой ответ от resolveDownload');
+    }
+    if (buffer.length > MAX_FILE_BYTES) {
+      throw new Error(`Файл слишком большой (${Math.round(buffer.length / 1_048_576)} МБ). Лимит Telegram — 50 МБ.`);
+    }
+    const caption = fmtBook(book).replace(/<[^>]+>/g, '');
+    const result = await sendDoc(chatId, buffer, dl.fileName, caption);
+    if (!result.ok) {
+      throw new Error(result.description || 'Ошибка отправки через Telegram API');
+    }
+    return { ok: true, fileName: dl.fileName };
+  });
+}
+
 async function handleUpdate(upd) {
   try {
     touchClusterHeartbeat();

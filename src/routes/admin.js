@@ -1181,10 +1181,11 @@ export function registerAdminRoutes(app, deps) {
         if (isJson) return apiFail(res, 400, ApiErrorCode.ADMIN_SOURCE_NAME_PATH, t('admin.sources.errorNamePath'));
         return res.redirect('/admin/sources?flash=' + encodeURIComponent(t('admin.sources.errorNamePath')));
       }
-      const source = addSource({ name, type, path: sourcePath });
+      const fast_scan = req.body.fast_scan === '1' || req.body.fast_scan === true || req.body.fast_scan === 'true' ? 1 : 0;
+      const source = addSource({ name, type, path: sourcePath, fast_scan });
       clearPageDataCache();
       markLibraryDedupProjectionStale();
-      logSystemEvent('info', 'settings', 'source added', { actor: req.user.username, source: source.name, type, path: sourcePath });
+      logSystemEvent('info', 'settings', 'source added', { actor: req.user.username, source: source.name, type, path: sourcePath, fast_scan });
       if (isJson) return res.json({ ok: true, source });
       res.redirect('/admin/sources?flash=' + encodeURIComponent(tp('admin.sources.flashAdded', { name: source.name })));
     } catch (error) {
@@ -1198,7 +1199,8 @@ export function registerAdminRoutes(app, deps) {
       const id = Number(req.params.id);
       const name = req.body.name !== undefined ? String(req.body.name).trim() : undefined;
       const enabled = req.body.enabled !== undefined ? req.body.enabled === '1' : undefined;
-      updateSource(id, { name, enabled });
+      const fast_scan = req.body.fast_scan !== undefined ? (req.body.fast_scan === '1' || req.body.fast_scan === true || req.body.fast_scan === 'true' ? 1 : 0) : undefined;
+      updateSource(id, { name, enabled, fast_scan });
       if (enabled !== undefined) {
         await refreshCatalogBookCounts();
       }
@@ -1217,6 +1219,7 @@ export function registerAdminRoutes(app, deps) {
       const id = Number(req.params.id);
       const name = req.body.name !== undefined ? String(req.body.name).trim() : undefined;
       const sourcePath = req.body.path !== undefined ? String(req.body.path).trim() : undefined;
+      const fast_scan = req.body.fast_scan !== undefined ? (req.body.fast_scan === '1' || req.body.fast_scan === true || req.body.fast_scan === 'true' ? 1 : 0) : undefined;
       if (name === '' || sourcePath === '') {
         return apiFail(res, 400, ApiErrorCode.PROBE_PATH_REQUIRED, t('admin.probe.pathRequired'));
       }
@@ -1226,7 +1229,7 @@ export function registerAdminRoutes(app, deps) {
           return res.status(400).json({ ok: false, error: t('admin.probe.pathMissing') });
         }
       }
-      const source = updateSource(id, { name, path: sourcePath });
+      const source = updateSource(id, { name, path: sourcePath, fast_scan });
       clearArchiveReadCaches();
       clearPageDataCache();
       logSystemEvent('info', 'settings', 'source edited', { actor: req.user?.username || 'admin', sourceId: id });

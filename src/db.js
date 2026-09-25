@@ -1638,11 +1638,14 @@ WHERE rp.progress >= 99
     }
   }
 
-  // Add book_count column to sources table (migration for existing DBs).
+  // Add book_count and fast_scan column to sources table (migration for existing DBs).
   {
     const cols = db.pragma('table_info(sources)').map(c => c.name);
     if (!cols.includes('book_count')) {
       db.exec(`ALTER TABLE sources ADD COLUMN book_count INTEGER NOT NULL DEFAULT 0`);
+    }
+    if (!cols.includes('fast_scan')) {
+      db.exec(`ALTER TABLE sources ADD COLUMN fast_scan INTEGER NOT NULL DEFAULT 0`);
     }
   }
 
@@ -1919,7 +1922,8 @@ export function getSources() {
   _stmtGetSources ??= db.prepare(`
     SELECT id, name, type, path, enabled, last_indexed_at AS lastIndexedAt,
            book_count AS bookCount, created_at AS createdAt,
-           flibusta_sidecar AS flibustaSidecar
+           flibusta_sidecar AS flibustaSidecar,
+           fast_scan AS fast_scan, fast_scan AS fastScan
     FROM sources
     ORDER BY created_at ASC
   `);
@@ -1931,7 +1935,8 @@ export function getEnabledSources() {
   _stmtGetEnabledSources ??= db.prepare(`
     SELECT id, name, type, path, enabled, last_indexed_at AS lastIndexedAt,
            book_count AS bookCount, created_at AS createdAt,
-           flibusta_sidecar AS flibustaSidecar
+           flibusta_sidecar AS flibustaSidecar,
+           fast_scan AS fast_scan, fast_scan AS fastScan
     FROM sources
     WHERE enabled = 1
     ORDER BY created_at ASC
@@ -1944,7 +1949,8 @@ export function getSourceById(id) {
   _stmtGetSourceById ??= db.prepare(`
     SELECT id, name, type, path, enabled, last_indexed_at AS lastIndexedAt,
            book_count AS bookCount, created_at AS createdAt,
-           flibusta_sidecar AS flibustaSidecar
+           flibusta_sidecar AS flibustaSidecar,
+           fast_scan AS fast_scan, fast_scan AS fastScan
     FROM sources
     WHERE id = ?
   `);
@@ -1956,7 +1962,8 @@ export function getSourceByPath(sourcePath) {
   _stmtGetSourceByPath ??= db.prepare(`
     SELECT id, name, type, path, enabled, last_indexed_at AS lastIndexedAt,
            book_count AS bookCount, created_at AS createdAt,
-           flibusta_sidecar AS flibustaSidecar
+           flibusta_sidecar AS flibustaSidecar,
+           fast_scan AS fast_scan, fast_scan AS fastScan
     FROM sources
     WHERE path = ?
   `);
@@ -1964,22 +1971,23 @@ export function getSourceByPath(sourcePath) {
 }
 
 let _stmtAddSource = null;
-export function addSource({ name, type, path: sourcePath }) {
+export function addSource({ name, type, path: sourcePath, fast_scan = 0 }) {
   const trimmedName = String(name || '').trim();
   const trimmedPath = String(sourcePath || '').trim();
   const normalizedType = type === 'inpx' ? 'inpx' : 'folder';
+  const fastScanVal = fast_scan ? 1 : 0;
   if (!trimmedName) throw new Error('Название источника не указано');
   if (!trimmedPath) throw new Error('Путь к источнику не указан');
   const existing = getSourceByPath(trimmedPath);
   if (existing) throw new Error('Источник с таким путём уже существует');
   _stmtAddSource ??= db.prepare(`
-    INSERT INTO sources(name, type, path) VALUES(?, ?, ?)
+    INSERT INTO sources(name, type, path, fast_scan) VALUES(?, ?, ?, ?)
   `);
-  const result = _stmtAddSource.run(trimmedName, normalizedType, trimmedPath);
+  const result = _stmtAddSource.run(trimmedName, normalizedType, trimmedPath, fastScanVal);
   return getSourceById(result.lastInsertRowid);
 }
 
-export function updateSource(id, { name, enabled, path: sourcePath }) {
+export function updateSource(id, { name, enabled, path: sourcePath, fast_scan }) {
   const parts = [];
   const params = [];
   if (name !== undefined) {
@@ -1991,6 +1999,10 @@ export function updateSource(id, { name, enabled, path: sourcePath }) {
   if (enabled !== undefined) {
     parts.push('enabled = ?');
     params.push(enabled ? 1 : 0);
+  }
+  if (fast_scan !== undefined) {
+    parts.push('fast_scan = ?');
+    params.push(fast_scan ? 1 : 0);
   }
   if (sourcePath !== undefined) {
     const trimmed = String(sourcePath || '').trim();

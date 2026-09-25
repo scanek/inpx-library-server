@@ -504,7 +504,13 @@ function parseFb2FromBuffer(raw) {
   return parseFb2Metadata(content);
 }
 
-async function extractMetadata(filePath, relativePath, ext, { zipEntry = null } = {}) {
+async function extractMetadata(filePath, relativePath, ext, { zipEntry = null, fastScan = false } = {}) {
+  const nameForParsing = zipEntry || relativePath;
+  if (fastScan) {
+    const fallback = parseFilenameMetadata(nameForParsing);
+    return { ...fallback, genres: '', seriesNo: '', lang: '', keywords: '', date: '' };
+  }
+
   if (ext === 'fb2') {
     try {
       const raw = zipEntry
@@ -544,7 +550,6 @@ async function extractMetadata(filePath, relativePath, ext, { zipEntry = null } 
     }
   }
 
-  const nameForParsing = zipEntry || relativePath;
   const fallback = parseFilenameMetadata(nameForParsing);
   return { ...fallback, genres: '', seriesNo: '', lang: '', keywords: '', date: '' };
 }
@@ -567,7 +572,7 @@ async function parseEpubMetadataFromBuffer(buf) {
   }
 }
 
-export async function indexFolder(source, { incremental = true, onProgress = null, control = null } = {}) {
+export async function indexFolder(source, { incremental = true, fastScan = null, onProgress = null, control = null } = {}) {
   const waitIfPaused = async () => {
     if (typeof control?.waitIfPaused === 'function') {
       await control.waitIfPaused();
@@ -578,15 +583,17 @@ export async function indexFolder(source, { incremental = true, onProgress = nul
       control.throwIfCancelled();
     }
   };
+  const isFastScan = fastScan != null ? Boolean(fastScan) : Boolean(source?.fast_scan);
   const rootPath = source.path;
   if (!fs.existsSync(rootPath)) {
     throw new Error(`Папка не найдена: ${rootPath}`);
   }
-  console.log(`[folder-index] start source_id=${source.id} path=${rootPath} incremental=${incremental}`);
+  console.log(`[folder-index] start source_id=${source.id} path=${rootPath} incremental=${incremental} fastScan=${isFastScan}`);
   logSystemEvent('info', 'index', 'folder index started', {
     sourceId: source.id,
     name: source.name || '',
     incremental,
+    fastScan: isFastScan,
     path: rootPath
   });
 
@@ -861,7 +868,10 @@ export async function indexFolder(source, { incremental = true, onProgress = nul
       await waitIfPaused();
       let meta;
       try {
-        meta = await extractMetadata(file.fullPath, file.relativePath, file.ext, { zipEntry: file.zipEntry });
+        meta = await extractMetadata(file.fullPath, file.relativePath, file.ext, {
+          zipEntry: file.zipEntry,
+          fastScan: isFastScan
+        });
       } catch {
         return null;
       }
@@ -1054,8 +1064,10 @@ export async function indexFolder(source, { incremental = true, onProgress = nul
   completedSuccessfully = true;
   repairBookJunctionLinks();
   
-  // Фоновое предизвлечение обложек/аннотаций для новых книг (не блокирует завершение индексации)
-  setImmediate(() => warmupBookDetailsCache(source.id));
+  // Фоновое предизвлечение обложек/аннотаций для новых книг (не блокирует завершение индексации; в fastScan не распаковываем)
+  if (!isFastScan) {
+    setImmediate(() => warmupBookDetailsCache(source.id));
+  }
   
   return result;
   } finally {

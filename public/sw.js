@@ -2,10 +2,12 @@
  * Service Worker — cache-first for static assets, network-first for everything else.
  */
 // IMPORTANT: Bump this version when deploying new assets to invalidate browser caches
-const CACHE_VERSION = 4;
-const CACHE_NAME = `inpx-v1-5e9c51aa`;
+const CACHE_VERSION = 5;
+const CACHE_NAME = `inpx-v1-0db2fb38`;
 const COVER_CACHE_NAME = 'inpx-covers-v1';
+const BOOK_CACHE_NAME = 'inpx-books-v1';
 const MAX_COVER_CACHE_ENTRIES = 500;
+const MAX_BOOK_CACHE_ENTRIES = 20;
 
 const STATIC_ASSETS = [
   '/styles.css',
@@ -21,6 +23,25 @@ const STATIC_ASSETS = [
   '/modules/catalog-view-switcher.js',
   '/modules/page-transitions.js',
   '/modules/touch-enhancements.js',
+  '/foliate/reader.html',
+  '/foliate/view.js',
+  '/foliate/epub.js',
+  '/foliate/epubcfi.js',
+  '/foliate/fb2.js',
+  '/foliate/fixed-layout.js',
+  '/foliate/footnotes.js',
+  '/foliate/mobi.js',
+  '/foliate/comic-book.js',
+  '/foliate/overlayer.js',
+  '/foliate/paginator.js',
+  '/foliate/progress.js',
+  '/foliate/search.js',
+  '/foliate/text-walker.js',
+  '/foliate/tts.js',
+  '/foliate/ui/menu.js',
+  '/foliate/ui/tree.js',
+  '/foliate/vendor/fflate.js',
+  '/foliate/vendor/zip.js',
   '/logo.png',
   '/favicon.png',
   '/favicon-192.png',
@@ -37,7 +58,7 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
-      keys.filter((k) => k !== CACHE_NAME && k !== COVER_CACHE_NAME).map((k) => caches.delete(k))
+      keys.filter((k) => k !== CACHE_NAME && k !== COVER_CACHE_NAME && k !== BOOK_CACHE_NAME).map((k) => caches.delete(k))
     )).then(() => self.clients.claim())
   );
 });
@@ -61,6 +82,23 @@ self.addEventListener('fetch', (event) => {
 
   // Skip cross-origin requests (e.g. Google Fonts)
   if (url.origin !== self.location.origin) return;
+
+  // Foliate modules & assets: cache-first with network background update
+  if (url.pathname.startsWith('/foliate/')) {
+    event.respondWith(
+      caches.match(event.request, { ignoreSearch: true }).then((cached) => {
+        const network = fetch(event.request).then((resp) => {
+          if (resp.ok) {
+            const clone = resp.clone();
+            caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
+          }
+          return resp;
+        }).catch(() => cached);
+        return cached || network;
+      })
+    );
+    return;
+  }
 
   // Static assets: для версионированных URL (?v=) — network-first (новые версии сразу),
   // для не-версионированных — stale-while-revalidate (отдаём кэш, в фоне обновляем).
@@ -100,6 +138,44 @@ self.addEventListener('fetch', (event) => {
         }
         return resp;
       }))
+    );
+    return;
+  }
+
+  // Reader HTML pages: network-first, save in BOOK_CACHE_NAME for offline reading
+  if (url.pathname.endsWith('/reader') && (url.pathname.startsWith('/books/') || url.pathname.startsWith('/lite/books/'))) {
+    event.respondWith(
+      fetch(event.request).then((resp) => {
+        if (resp.ok) {
+          const clone = resp.clone();
+          caches.open(BOOK_CACHE_NAME).then((c) => {
+            c.put(event.request, clone);
+            trimCache(BOOK_CACHE_NAME, MAX_BOOK_CACHE_ENTRIES * 2);
+          });
+        }
+        return resp;
+      }).catch(() => caches.match(event.request, { cacheName: BOOK_CACHE_NAME, ignoreSearch: true }))
+    );
+    return;
+  }
+
+  // Book content files: network-first, save in BOOK_CACHE_NAME, fallback to cache
+  if (url.pathname.includes('/content/')) {
+    event.respondWith(
+      fetch(event.request).then((resp) => {
+        if (resp.ok) {
+          const clone = resp.clone();
+          caches.open(BOOK_CACHE_NAME).then((c) => {
+            c.put(event.request, clone);
+            trimCache(BOOK_CACHE_NAME, MAX_BOOK_CACHE_ENTRIES * 2);
+          });
+        }
+        return resp;
+      }).catch(async () => {
+        const cached = await caches.match(event.request, { cacheName: BOOK_CACHE_NAME, ignoreSearch: true });
+        if (cached) return cached;
+        return caches.match(url.pathname, { cacheName: BOOK_CACHE_NAME, ignoreSearch: true });
+      })
     );
     return;
   }

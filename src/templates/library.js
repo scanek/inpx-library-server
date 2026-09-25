@@ -732,6 +732,7 @@ export function renderBook({
             ${renderDownloadMenu(book, { accent: true, user })}
             <a href="${readPagePath(book.id)}" class="button" target="_blank" rel="noopener noreferrer">${escapeHtml(t('book.read'))}</a>
             ${isAuthenticated && canSendToEmailInUi(user) ? `<button class="button" type="button" ${bookIdDataAttr(book.id)} data-send-to-ereader="1">${escapeHtml(t('book.toEmail'))}</button>` : ''}
+            ${isAuthenticated ? `<button class="button" type="button" ${bookIdDataAttr(book.id)} data-send-to-telegram="1" title="${escapeHtml(t('telegram.sendToTelegram'))}">📲 ${escapeHtml(t('telegram.sendToTelegram'))}</button>` : ''}
           </div>
         </div>
         ${user?.role === 'admin' ? `<details class="book-edit-disclosure book-edit-disclosure--inline">
@@ -1458,6 +1459,7 @@ ${fontPreconnect}
     <a href="${backHref}" class="tb-btn"${readerBackClick} title="${escapeHtml(t('reader.back'))}" aria-label="${escapeHtml(t('reader.backToBook'))}"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></a>
     <div class="tb-meta">
       <span class="tb-title">${escapeHtml(title)}</span>
+      <span class="tb-offline-badge" id="offline-badge" style="display:none;" title="${escapeHtml(t('reader.offlineHint'))}">📴 ${escapeHtml(t('reader.offlineBadge'))}</span>
     </div>
   </div>
   <div class="tb-center tb-hide-m">

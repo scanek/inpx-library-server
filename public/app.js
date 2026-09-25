@@ -4561,6 +4561,66 @@ function attachSendToEreader() {
   });
 }
 
+function attachSendToTelegram() {
+  if (attachSendToTelegram._bound) return;
+  attachSendToTelegram._bound = true;
+
+  document.addEventListener('click', async (e) => {
+    const btn = e.target instanceof Element ? e.target.closest('[data-send-to-telegram]') : null;
+    if (!btn) return;
+
+    const bookId = typeof resolveBookIdFromElement === 'function'
+      ? resolveBookIdFromElement(btn)
+      : (btn.dataset.sendToTelegram ? decodeURIComponent(btn.dataset.sendToTelegram).replace(/\uFFFD/g, '\0') : null);
+    if (!bookId) return;
+
+    const origHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="btn-spinner"></span>' + escapeHtml(uiT('telegram.sending') || 'Отправка…');
+
+    try {
+      const csrf = getCsrfTokenFromPage();
+      const headers = { 'Content-Type': 'application/json', Accept: 'application/json' };
+      if (csrf) headers['X-CSRF-Token'] = csrf;
+
+      const res = await fetch(`/api/books/${encodeURIComponent(bookId)}/send-telegram`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers,
+        body: JSON.stringify({})
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.ok) {
+        if (data.error === 'not_linked') {
+          openModal(`
+            <div class="modal-header">
+              <span>📲 ${escapeHtml(uiT('telegram.sendToTelegram') || 'Telegram')}</span>
+              <button type="button" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-form" style="padding:16px;">
+              <p>${escapeHtml(uiT('telegram.linkPrompt') || 'Чтобы отправлять книги себе в Telegram в один клик, привяжите бота в профиле.')}</p>
+              <div style="margin-top:16px;">
+                <a href="${data.linkUrl || '/profile#settings'}" class="button" style="display:inline-block;padding:8px 16px;">${escapeHtml(uiT('telegram.linkBtn') || 'Привязать Telegram')}</a>
+              </div>
+            </div>
+          `);
+          return;
+        }
+        showToast(data.message || (uiT('app.errorPrefix') + ' ' + (data.error || 'Failed')), 'error');
+        return;
+      }
+
+      showToast(data.message || uiT('telegram.sentOk') || 'Книга отправлена в Telegram!', 'success');
+    } catch (err) {
+      showToast(uiT('app.errorPrefix') + ' ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
+    }
+  });
+}
+
 function attachSendBatchToEreader() {
   if (attachSendBatchToEreader._bound) return;
   attachSendBatchToEreader._bound = true;
@@ -6315,14 +6375,15 @@ function attachAddSourceForm() {
 
   const nameInput = form.querySelector('#source-name');
   const pathInput = form.querySelector('#source-path');
+  const fastScanInput = form.querySelector('#source-fast-scan');
   const submitBtn = form.querySelector('#add-source-btn');
 
-  async function addSource(name, type, sourcePath) {
+  async function addSource(name, type, sourcePath, fastScan = false) {
     const res = await fetch('/admin/sources/add', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ name, type, path: sourcePath })
+      body: JSON.stringify({ name, type, path: sourcePath, fast_scan: fastScan ? 1 : 0 })
     });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return res.json();
@@ -6332,6 +6393,7 @@ function attachAddSourceForm() {
     e.preventDefault();
     const name = nameInput.value.trim();
     const sourcePath = pathInput.value.trim();
+    const fastScan = fastScanInput ? fastScanInput.checked : false;
     if (!name || !sourcePath) return;
 
     submitBtn.disabled = true;
@@ -6339,7 +6401,7 @@ function attachAddSourceForm() {
 
     try {
       if (sourcePath.toLowerCase().endsWith('.inpx')) {
-        const result = await addSource(name, 'inpx', sourcePath);
+        const result = await addSource(name, 'inpx', sourcePath, fastScan);
         if (result.ok) { window.location.reload(); return; }
         showToast(result.error || uiT('app.adminAddFail'), 'error');
         return;
@@ -6361,7 +6423,7 @@ function attachAddSourceForm() {
       }
 
       if (probe.isFile && probe.isInpx) {
-        const result = await addSource(name, 'inpx', sourcePath);
+        const result = await addSource(name, 'inpx', sourcePath, fastScan);
         if (result.ok) { window.location.reload(); return; }
         showToast(result.error || uiT('app.adminAddFail'), 'error');
         return;
@@ -6372,7 +6434,7 @@ function attachAddSourceForm() {
         return;
       }
 
-      const result = await addSource(name, 'folder', sourcePath);
+      const result = await addSource(name, 'folder', sourcePath, fastScan);
       if (result.ok) { window.location.reload(); return; }
       showToast(result.error || uiT('app.adminAddFail'), 'error');
     } catch (err) {
@@ -6475,13 +6537,16 @@ function attachAddSourceForm() {
     });
 
     panel.querySelector('[data-choice="folder"]').addEventListener('click', async () => {
-      const warnMsg = uiT('app.adminFolderConfirm7zWarn') || 'Внимание: в режиме «Папка» сервер будет распаковывать метаданные каждой книги из архивов, что может занять много часов. Для готовых библиотек рекомендуется режим INPX. Всё равно продолжить?';
-      if (!(await confirmAction(warnMsg, { danger: true }))) return;
+      const fastScan = fastScanInput ? fastScanInput.checked : false;
+      if (!fastScan) {
+        const warnMsg = uiT('app.adminFolderConfirm7zWarn') || 'Внимание: в режиме «Папка» сервер будет распаковывать метаданные каждой книги из архивов, что может занять много часов. Для готовых библиотек рекомендуется режим INPX. Всё равно продолжить?';
+        if (!(await confirmAction(warnMsg, { danger: true }))) return;
+      }
       modal.forceClose();
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<span class="btn-spinner"></span>' + escapeHtml(uiT('app.adminAddingSource'));
       try {
-        const result = await addSource(name, 'folder', folderPath);
+        const result = await addSource(name, 'folder', folderPath, fastScan);
         if (result.ok) { window.location.reload(); return; }
         showToast(result.error || uiT('app.adminAddFail'), 'error');
       } catch (err) { showToast(uiT('app.errorPrefix') + ' ' + err.message, 'error'); }
@@ -6536,6 +6601,7 @@ attachFormSubmitSpinners();
 attachShelfActions();
 attachAddToShelfButtons();
 attachSendToEreader();
+attachSendToTelegram();
 attachSendBatchToEreader();
 attachUpdateUpload();
 attachUiAppearanceUpload();

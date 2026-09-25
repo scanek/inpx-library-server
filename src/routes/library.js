@@ -19,7 +19,7 @@ import {
 import { config } from '../config.js';
 import { t, tp, getLocale } from '../i18n.js';
 import { ApiErrorCode, apiFail } from '../api-errors.js';
-import { requireBrowseAuth, requireBrowseOrOpds, requireWebAuth, requireAdminWeb } from '../middleware/auth.js';
+import { requireBrowseAuth, requireBrowseOrOpds, requireWebAuth, requireAdminWeb, requireDownloadAuth } from '../middleware/auth.js';
 import { getCachedPageData, getStaleOrSchedule, clearPageDataCache, invalidateUserPageCaches } from '../services/cache.js';
 import { logSystemEvent } from '../services/system-events.js';
 import { getRecommendedLibraryView, getHomeRecommendations, buildSimilarBooks } from '../services/recommendations.js';
@@ -1250,6 +1250,58 @@ export function registerLibraryRoutes(app, deps) {
       }
     } catch (error) {
       next(error);
+    }
+  });
+
+  // --- Send book to Telegram ---
+  app.post('/api/books/:id/send-telegram', requireDownloadAuth, async (req, res) => {
+    try {
+      const book = getBookById(req.params.id);
+      if (!book) return apiFail(res, 404, ApiErrorCode.BOOK_NOT_FOUND, t('book.notFound'));
+
+      const user = req.user;
+      if (!user) return apiFail(res, 401, ApiErrorCode.UNAUTHORIZED, 'Требуется авторизация');
+
+      const { getUserByUsername, resolveTelegramRuntimeConfig, isTelegramBotAllowedForUser } = await import('../db.js');
+      const tgCfg = resolveTelegramRuntimeConfig();
+      if (!tgCfg.enabled || !tgCfg.token) {
+        return res.status(400).json({
+          ok: false,
+          error: 'bot_disabled',
+          message: t('telegram.botDisabled') || 'Telegram-бот не настроен или отключён'
+        });
+      }
+
+      const fullUser = user.username ? getUserByUsername(user.username) : null;
+      if (fullUser && !isTelegramBotAllowedForUser(fullUser)) {
+        return res.status(403).json({
+          ok: false,
+          error: 'bot_forbidden',
+          message: 'Доступ к Telegram-боту ограничен администратором'
+        });
+      }
+
+      const telegramId = fullUser?.telegramId || user.telegramId;
+      if (!telegramId) {
+        return res.status(400).json({
+          ok: false,
+          error: 'not_linked',
+          message: t('telegram.notLinked') || 'Telegram не привязан к вашему аккаунту',
+          linkUrl: '/profile/settings'
+        });
+      }
+
+      const format = req.body?.format ? String(req.body.format).trim().toLowerCase() : null;
+      const { sendBookFileToChat } = await import('../services/telegram-bot.js');
+      const result = await sendBookFileToChat(telegramId, book.id, format);
+
+      res.json({
+        ok: true,
+        message: t('telegram.sentOk') || 'Книга отправлена в Telegram',
+        fileName: result.fileName
+      });
+    } catch (error) {
+      res.status(500).json({ ok: false, error: 'send_failed', message: error.message });
     }
   });
 }
