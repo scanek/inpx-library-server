@@ -18,7 +18,7 @@ import { renderCollectionsList, renderCollectionDetail } from '../src/templates/
 initDb();
 
 test('collections: initCollections loads bundled collections', () => {
-  initCollections();
+  initCollections({ sync: true });
   const list = listCollections();
   assert.ok(list.length >= 6, 'Should load at least 6 bundled collections');
 
@@ -35,9 +35,9 @@ test('collections: matchBookInLibrary matches books by title and author', () => 
   const dummyBookId = 'test-book-master-margarita';
   try {
     db.prepare(`
-      INSERT INTO books (id, title, authors, ext, deleted, lib_rate, lang)
-      VALUES (?, ?, ?, ?, 0, 5, 'ru')
-    `).run(dummyBookId, 'Мастер и Маргарита', 'Михаил Булгаков', 'fb2');
+      INSERT INTO books (id, title, authors, title_search, authors_search, ext, deleted, lib_rate, lang)
+      VALUES (?, ?, ?, ?, ?, ?, 0, 5, 'ru')
+    `).run(dummyBookId, 'Мастер и Маргарита', 'Михаил Булгаков', 'мастер и маргарита', 'михаил булгаков', 'fb2');
 
     const matched = matchBookInLibrary('Михаил Булгаков', 'Мастер и Маргарита');
     assert.strictEqual(matched, dummyBookId, 'Should match exact book');
@@ -58,9 +58,9 @@ test('collections: rematchCollection updates matched_book_id and stats', () => {
   const dummyBookId = 'test-book-1984';
   try {
     db.prepare(`
-      INSERT INTO books (id, title, authors, ext, deleted, lib_rate, lang)
-      VALUES (?, ?, ?, ?, 0, 5, 'ru')
-    `).run(dummyBookId, '1984', 'Джордж Оруэлл', 'fb2');
+      INSERT INTO books (id, title, authors, title_search, authors_search, ext, deleted, lib_rate, lang)
+      VALUES (?, ?, ?, ?, ?, ?, 0, 5, 'ru')
+    `).run(dummyBookId, '1984', 'Джордж Оруэлл', '1984', 'джордж оруэлл', 'fb2');
 
     const col = listCollections().find((c) => c.slug === 'world-sci-fi-gold');
     assert.ok(col, 'world-sci-fi-gold collection should exist');

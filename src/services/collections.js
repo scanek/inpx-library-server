@@ -51,24 +51,34 @@ export function matchBookInLibrary(author, title) {
 
   // 1. Try search using FTS if available
   try {
-    const ftsQuery = surname
-      ? `"${normTitle}"* OR (title:"${titleTokens[0]}"* AND authors:"${surname}"*)`
-      : `"${normTitle}"*`;
-    const ftsRows = db.prepare(`
-      SELECT b.id, b.title, b.authors, b.ext, b.lib_rate, b.deleted
-      FROM books_fts f
-      JOIN books b ON b.rowid = f.rowid
-      WHERE books_fts MATCH ? AND b.deleted = 0
-      LIMIT 25
-    `).all(ftsQuery);
-    if (ftsRows && ftsRows.length > 0) {
-      candidates = ftsRows;
+    const cleanToken = (s) => String(s || '').replace(/["*^:()]/g, ' ').trim();
+    const safeTitle = cleanToken(normTitle);
+    const safeSurname = cleanToken(surname);
+    const safeFirstToken = cleanToken(titleTokens[0]);
+
+    if (safeTitle) {
+      let ftsQuery = '';
+      if (safeSurname && safeFirstToken) {
+        ftsQuery = `"${safeTitle}"* OR (title_search:"${safeFirstToken}"* AND authors_search:"${safeSurname}"*)`;
+      } else {
+        ftsQuery = `"${safeTitle}"*`;
+      }
+      const ftsRows = db.prepare(`
+        SELECT b.id, b.title, b.authors, b.ext, b.lib_rate, b.deleted
+        FROM books_fts f
+        JOIN books b ON b.rowid = f.rowid
+        WHERE books_fts MATCH ? AND b.deleted = 0
+        LIMIT 25
+      `).all(ftsQuery);
+      if (ftsRows && ftsRows.length > 0) {
+        candidates = ftsRows;
+      }
     }
   } catch {
     // FTS query fallback
   }
 
-  // 2. If FTS returned nothing or failed, try LIKE queries on books table with lower_unicode
+  // 2. If FTS returned nothing or failed, try LIKE queries on indexed search columns
   if (!candidates.length) {
     try {
       if (surname && titleTokens.length) {
@@ -76,8 +86,8 @@ export function matchBookInLibrary(author, title) {
           SELECT id, title, authors, ext, lib_rate, deleted
           FROM books
           WHERE deleted = 0
-            AND (lower_unicode(title) LIKE ? OR lower_unicode(title) LIKE ?)
-            AND lower_unicode(authors) LIKE ?
+            AND (title_search LIKE ? OR title_search LIKE ?)
+            AND authors_search LIKE ?
           LIMIT 25
         `).all(`${normTitle}%`, `%${normTitle}%`, `%${surname}%`);
       }
@@ -86,7 +96,7 @@ export function matchBookInLibrary(author, title) {
           SELECT id, title, authors, ext, lib_rate, deleted
           FROM books
           WHERE deleted = 0
-            AND (lower_unicode(title) LIKE ? OR lower_unicode(title) = ?)
+            AND (title_search LIKE ? OR title_search = ?)
           LIMIT 25
         `).all(`%${normTitle}%`, normTitle);
       }
@@ -158,9 +168,19 @@ export function matchBookInLibrary(author, title) {
 /**
  * Ensures schema exists and loads bundled collections from disk.
  */
-export function initCollections() {
+export function initCollections({ sync = false } = {}) {
   ensureCollectionsSchema();
-  loadBundledCollections();
+  if (sync) {
+    loadBundledCollections();
+  } else {
+    setImmediate(() => {
+      try {
+        loadBundledCollections();
+      } catch (err) {
+        console.warn('[collections] Failed to load bundled collections:', err.message);
+      }
+    });
+  }
 }
 
 /**
@@ -285,8 +305,6 @@ export function importCollection(data, { isBuiltin = 0, allowUpdateMeta = true }
         if (prev) {
           updateStmt.run(pos, year, isbn, note, prev.id);
         } else {
-          // New item: try matching immediately
-          const matchedId = matchBookInLibrary(author, itemTitle);
           insertStmt.run(
             collectionId,
             pos,
@@ -295,12 +313,15 @@ export function importCollection(data, { isBuiltin = 0, allowUpdateMeta = true }
             year,
             isbn,
             note,
-            matchedId,
-            matchedId ? new Date().toISOString() : null
+            null,
+            null
           );
         }
       }
     })();
+
+    // Rematch items outside the write transaction
+    rematchCollection(collectionId);
   }
 
   return collectionId;
