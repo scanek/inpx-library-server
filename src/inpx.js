@@ -6249,12 +6249,12 @@ const RECENT_ARRIVAL_WINDOW_DAYS = 30;
 
 const ISO_DATE_PRED = (alias = '') => {
   const col = alias ? `${alias}.date` : 'date';
-  return `${col} IS NOT NULL AND LENGTH(TRIM(${col})) >= 10 AND SUBSTR(${col}, 1, 10) GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'`;
+  return `${col} >= '1970-01-01' AND ${col} <= '2099-12-31'`;
 };
 
 function resolveRecentCatalogCutoff() {
   const maxDate = db.prepare(`
-    SELECT MAX(SUBSTR(date, 1, 10)) AS d
+    SELECT MAX(date) AS d
     FROM active_books
     WHERE ${ISO_DATE_PRED()}
   `).get()?.d;
@@ -6286,7 +6286,7 @@ export function getRecentArrivals({
     return { total: 0, items: [] };
   }
 
-  const whereParts = [`${ISO_DATE_PRED('b')}`, 'SUBSTR(b.date, 1, 10) >= ?'];
+  const whereParts = [`${ISO_DATE_PRED('b')}`, 'b.date >= ?'];
   const whereParams = [bounds.cutoff];
   const genreFilter = buildGenreFilterSql(genre);
   if (genreFilter) {
@@ -6308,7 +6308,7 @@ export function getRecentArrivals({
   }
 
   const listOrderBy = sort === 'recent' || !sort
-    ? applyOrder('SUBSTR(b.date, 1, 10) DESC, b.id DESC', order)
+    ? applyOrder('b.date DESC, b.id DESC', order)
     : resolveBookAliasSort(sort, 'b', order);
 
   const items = db.prepare(`
@@ -6335,8 +6335,8 @@ export function getLibrarySections() {
   _stmtLibSections ??= db.prepare(`
     SELECT id, title, authors, genres, series, series_no AS seriesNo, ext, lang, lib_rate AS libRate, archive_name AS archiveName
     FROM active_books
-    WHERE ${ISO_DATE_PRED()} AND SUBSTR(date, 1, 10) >= ?
-    ORDER BY SUBSTR(date, 1, 10) DESC, id DESC
+    WHERE date >= ? AND date <= '2099-12-31'
+    ORDER BY date DESC, id DESC
     LIMIT ?
   `);
   const pool = _stmtLibSections.all(bounds.cutoff, POOL_SIZE).map(mapBookListRow);

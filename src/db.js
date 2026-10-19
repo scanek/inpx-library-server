@@ -1028,18 +1028,23 @@ export function unblockUser(username) {
 /** Триггеры синхронизации fts5 (content='books') с таблицей books. */
 const BOOKS_FTS_TRIGGERS_SQL = `
   CREATE TRIGGER IF NOT EXISTS books_ai AFTER INSERT ON books BEGIN
-    INSERT INTO books_fts(rowid) VALUES (new.rowid);
+    INSERT INTO books_fts(rowid, id, title_search, authors_search, genres_search, series_search, keywords_search)
+    VALUES (new.rowid, new.id, new.title_search, new.authors_search, new.genres_search, new.series_search, new.keywords_search);
   END;
   CREATE TRIGGER IF NOT EXISTS books_ad AFTER DELETE ON books BEGIN
-    INSERT INTO books_fts(books_fts, rowid) VALUES('delete', old.rowid);
+    INSERT INTO books_fts(books_fts, rowid, id, title_search, authors_search, genres_search, series_search, keywords_search)
+    VALUES ('delete', old.rowid, old.id, old.title_search, old.authors_search, old.genres_search, old.series_search, old.keywords_search);
   END;
   CREATE TRIGGER IF NOT EXISTS books_au AFTER UPDATE ON books BEGIN
-    INSERT INTO books_fts(books_fts, rowid) VALUES('delete', old.rowid);
-    INSERT INTO books_fts(rowid) VALUES (new.rowid);
+    INSERT INTO books_fts(books_fts, rowid, id, title_search, authors_search, genres_search, series_search, keywords_search)
+    VALUES ('delete', old.rowid, old.id, old.title_search, old.authors_search, old.genres_search, old.series_search, old.keywords_search);
+    INSERT INTO books_fts(rowid, id, title_search, authors_search, genres_search, series_search, keywords_search)
+    VALUES (new.rowid, new.id, new.title_search, new.authors_search, new.genres_search, new.series_search, new.keywords_search);
   END;
 `;
 
 export function ensureBooksFtsTriggers() {
+  dropBooksFtsTriggers();
   db.exec(BOOKS_FTS_TRIGGERS_SQL);
 }
 
@@ -1249,11 +1254,13 @@ export async function rebuildBooksFtsFromContent(options = {}) {
     // Адаптивный размер батча: меньше для крупных библиотек, чтобы не блокировать HTTP
     const BATCH = total > 500_000 ? 1000 : 2000;
     const sel = db.prepare(`
-      SELECT rowid FROM books
+      SELECT rowid, id, title_search, authors_search, genres_search, series_search, keywords_search
+      FROM books
       WHERE rowid > ? ORDER BY rowid LIMIT ?
     `);
     const ins = db.prepare(`
-      INSERT INTO books_fts(rowid) VALUES (?)
+      INSERT INTO books_fts(rowid, id, title_search, authors_search, genres_search, series_search, keywords_search)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
     let done = resuming ? db.prepare('SELECT COUNT(*) AS c FROM books WHERE rowid <= ?').get(lastRowid)?.c ?? 0 : 0;
     let batchNum = 0;
@@ -1264,7 +1271,7 @@ export async function rebuildBooksFtsFromContent(options = {}) {
       lastRowid = rows[rows.length - 1].rowid;
       db.transaction(() => {
         for (const r of rows) {
-          ins.run(r.rowid);
+          ins.run(r.rowid, r.id, r.title_search, r.authors_search, r.genres_search, r.series_search, r.keywords_search);
         }
         saveProgress.run(FTS_REBUILD_PROGRESS_KEY, String(lastRowid));
       })();
@@ -1718,18 +1725,23 @@ export function getBooksFtsStatus({ force = false, recover = false } = {}) {
   const rebuildProgress = getMeta(FTS_REBUILD_PROGRESS_KEY);
   const booksCount = Number(db.prepare('SELECT COUNT(*) AS c FROM books').get()?.c) || 0;
   const ftsDocCount = countBooksFtsDocs();
+  let ftsIdxCount = -1;
+  try {
+    ftsIdxCount = Number(db.prepare('SELECT COUNT(*) AS c FROM books_fts_idx').get()?.c) || 0;
+  } catch { /* ignore */ }
 
   let status = 'ok';
   if (dirty && rebuildProgress) status = 'rebuilding';
   else if (dirty) status = 'dirty';
   else if (booksCount === 0) status = 'empty';
-  else if (ftsDocCount === 0 || ftsDocCount < Math.floor(booksCount * 0.5)) status = 'desynced';
+  else if (ftsDocCount === 0 || (booksCount > 100 && ftsIdxCount === 0) || ftsDocCount < Math.floor(booksCount * 0.5)) status = 'desynced';
 
   const snapshot = {
     status,
     dirty,
     booksCount,
     ftsDocCount,
+    ftsIdxCount,
     rebuilding: status === 'rebuilding' || Boolean(rebuildProgress)
   };
   _ftsHealthCache = { at: now, status: snapshot };
