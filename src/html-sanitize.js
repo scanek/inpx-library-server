@@ -66,3 +66,72 @@ export function balanceHtmlFragment(html) {
   }
   return out;
 }
+
+/**
+ * Преобразует BB-коды (часто встречающиеся в раздачах Flibusta, Librusec, RuTracker)
+ * в безопасную HTML-разметку:
+ *   [b]...[/b] -> <strong>...</strong>
+ *   [i]...[/i] -> <em>...</em>
+ *   [u]...[/u] -> <u>...</u>
+ *   [s]...[/s] -> <s>...</s>
+ *   [spoiler=Название]...[/spoiler] -> <details><summary>Название</summary>...</details>
+ *   [quote]...[/quote] -> <blockquote>...</blockquote>
+ *   [url=https://...]текст[/url] -> <a href="...">текст</a>
+ */
+export function parseBbCode(text) {
+  let s = String(text || '');
+  if (!s) return '';
+
+  // Если HTML-теги были закодированы в XML-сущности (&lt;p&gt;...), раскодируем их
+  if (/&lt;(?:p|br|div|b|i|strong|em|span|ul|ol|li)\b/i.test(s)) {
+    s = s
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&#39;/g, "'")
+      .replace(/&amp;/g, '&');
+  }
+
+  // Обработка [spoiler=Заголовок]...[/spoiler] и [spoiler]...[/spoiler]
+  for (let i = 0; i < 3; i++) {
+    const prev = s;
+    s = s.replace(/\[spoiler=([^\]]+)\]([\s\S]*?)\[\/spoiler\]/gi, (_m, title, content) => {
+      const trimmedTitle = String(title || '').trim() || 'Спойлер';
+      return `<details class="book-annotation-spoiler"><summary>${trimmedTitle}</summary><div class="book-annotation-spoiler-content">${content.trim()}</div></details>`;
+    });
+    s = s.replace(/\[spoiler\]([\s\S]*?)\[\/spoiler\]/gi, (_m, content) => {
+      return `<details class="book-annotation-spoiler"><summary>Спойлер</summary><div class="book-annotation-spoiler-content">${content.trim()}</div></details>`;
+    });
+    if (s === prev) break;
+  }
+
+  // Текстовое форматирование
+  s = s.replace(/\[b\]([\s\S]*?)\[\/b\]/gi, '<strong>$1</strong>');
+  s = s.replace(/\[i\]([\s\S]*?)\[\/i\]/gi, '<em>$1</em>');
+  s = s.replace(/\[u\]([\s\S]*?)\[\/u\]/gi, '<u>$1</u>');
+  s = s.replace(/\[s\]([\s\S]*?)\[\/s\]/gi, '<s>$1</s>');
+  s = s.replace(/\[del\]([\s\S]*?)\[\/del\]/gi, '<del>$1</del>');
+  s = s.replace(/\[quote\]([\s\S]*?)\[\/quote\]/gi, '<blockquote>$1</blockquote>');
+  s = s.replace(/\[quote=([^\]]+)\]([\s\S]*?)\[\/quote\]/gi, '<blockquote><cite>$1:</cite>$2</blockquote>');
+
+  // Ссылки
+  s = s.replace(/\[url=(https?:\/\/[^\s\]]+)\]([\s\S]*?)\[\/url\]/gi, '<a href="$1" target="_blank" rel="noopener noreferrer">$2</a>');
+  s = s.replace(/\[url\](https?:\/\/[^\s\]]+)\[\/url\]/gi, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+
+  // Очистка тегов форматирования цвета, шрифта и размера (чтобы не засорять страницу)
+  s = s.replace(/\[(?:color|size|font)(?:=[^\]]*)?\]([\s\S]*?)\[\/(?:color|size|font)\]/gi, '$1');
+  s = s.replace(/\[\/?(?:color|size|font)(?:=[^\]]*)?\]/gi, '');
+
+  return s;
+}
+
+/** Удаляет все BB-коды для вывода в чистом тексте (OPDS plain text, уведомления). */
+export function stripBbCode(text) {
+  let s = String(text || '');
+  if (!s) return '';
+  s = s.replace(/\[spoiler(?:=[^\]]*)?\]([\s\S]*?)\[\/spoiler\]/gi, '$1');
+  s = s.replace(/\[url=(https?:\/\/[^\s\]]+)\]([\s\S]*?)\[\/url\]/gi, '$2 ($1)');
+  s = s.replace(/\[\/?[a-zA-Z][a-zA-Z0-9]*(?:=[^\]]*)?\]/g, '');
+  return s;
+}

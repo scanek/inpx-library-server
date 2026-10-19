@@ -720,7 +720,7 @@ export function renderBook({
           ${
             details.annotationIsHtml && String(details.annotation || '').trim()
               ? `<div class="book-detail-annotation book-detail-annotation--html">${sanitizeHtml(details.annotation)}</div>`
-              : `<p class="book-detail-annotation">${escapeHtml(details.annotation || t('book.noAnnotation'))}</p>`
+              : `<div class="book-detail-annotation">${sanitizeHtml(details.annotation || t('book.noAnnotation'))}</div>`
           }
           <div class="book-detail-review-mount" data-book-review-mount data-book-review-for="${encodeURIComponent(String(book.id))}" data-review-heading="${escapeHtml(t('book.review'))}" hidden aria-hidden="true"></div>
           ${

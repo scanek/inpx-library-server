@@ -5801,6 +5801,50 @@ body:has(.bottom-nav) .batch-fab {
   margin-top: 0;
 }
 
+.book-annotation-spoiler {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  background: var(--bg-surface-elevated, var(--bg-surface));
+}
+
+.book-annotation-spoiler summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--primary);
+  user-select: none;
+}
+
+.book-annotation-spoiler[open] summary {
+  margin-bottom: 8px;
+  border-bottom: 1px dashed var(--border);
+  padding-bottom: 6px;
+}
+
+.book-annotation-spoiler-content {
+  font-size: 0.95em;
+  line-height: 1.6;
+}
+
+.book-detail-annotation blockquote {
+  margin: 10px 0;
+  padding: 8px 14px;
+  border-left: 3px solid var(--primary);
+  background: var(--bg-surface-elevated, var(--bg-surface));
+  border-radius: 0 var(--radius-sm, 4px) var(--radius-sm, 4px) 0;
+  font-style: italic;
+}
+
+.book-detail-annotation blockquote cite {
+  display: block;
+  font-weight: 600;
+  font-style: normal;
+  margin-bottom: 4px;
+  font-size: 0.9em;
+  color: var(--text-muted);
+}
+
 /* Keep illustration colors original in dark theme. */
 .book-detail-annotation--html img,
 .book-detail-illustrations-strip img,

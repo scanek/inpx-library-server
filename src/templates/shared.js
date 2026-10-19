@@ -26,7 +26,7 @@ import {
 } from '../i18n.js';
 import { resolveIndexStageLine } from '../index-stage-i18n.js';
 import { getUiCustomization, getThemeCssVars, hasUiThemeColorsConfigured, usesPanelGlass, hasUiThemeShapeConfigured, hasUiThemeTypographyConfigured, FONT_FAMILY_WEBFONT, DISPLAY_FONT_WEBFONT } from '../services/ui-customization.js';
-import { balanceHtmlFragment, stripFlibustaMediaPlaceholders } from '../html-sanitize.js';
+import { balanceHtmlFragment, stripFlibustaMediaPlaceholders, parseBbCode, stripBbCode } from '../html-sanitize.js';
 
 export { t, tp, getLocale, plural, countLabel, formatLocaleInt, formatLocaleDateShort, formatLocaleDateTimeShort, formatLocaleDateLong, serializeClientI18n };
 export { formatAuthorLabel, formatGenreLabel, formatLanguageLabel, parseGenreCodes };
@@ -242,10 +242,11 @@ export function escapeHtml(value = '') {
     .replace(/'/g, '&#39;');
 }
 
-const ALLOWED_HTML_TAG_RE = /^(b|i|em|strong|p|br|span|div|ul|ol|li|h[1-6]|blockquote|sup|sub|a|img|table|thead|tbody|tr|td|th)$/i;
+const ALLOWED_HTML_TAG_RE = /^(b|i|em|strong|p|br|span|div|ul|ol|li|h[1-6]|blockquote|sup|sub|a|img|table|thead|tbody|tr|td|th|details|summary|u|s|del|cite)$/i;
 
 export function sanitizeHtml(html) {
-  const cleaned = stripXmlInvalidControls(stripFlibustaMediaPlaceholders(html))
+  const bbParsed = parseBbCode(html);
+  const cleaned = stripXmlInvalidControls(stripFlibustaMediaPlaceholders(bbParsed))
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
     .replace(/javascript:/gi, 'blocked:')
