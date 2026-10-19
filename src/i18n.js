@@ -68,11 +68,12 @@ export function t(key) {
   return key;
 }
 
-/** Замена {{name}} в строке перевода. */
+/** Замена {{name}} или {name} в строке перевода. */
 export function tp(key, vars = {}) {
   let s = t(key);
   for (const [k, v] of Object.entries(vars)) {
     s = s.split(`{{${k}}}`).join(String(v));
+    s = s.split(`{${k}}`).join(String(v));
   }
   return s;
 }
