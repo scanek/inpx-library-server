@@ -23,7 +23,7 @@ import {
 } from './shared.js';
 import { pickHomeWelcomeQuote } from '../home-welcome-quotes.js';
 
-export function renderHome({ user, stats, indexStatus, history = [], favoriteAuthors = [], favoriteSeries = [], sections = {}, recommendations = [], homeSubtitle = '', csrfToken = '', readBookIds = null, hasContinueData = false, listView = false }) {
+export function renderHome({ user, stats, indexStatus, history = [], favoriteAuthors = [], favoriteSeries = [], sections = {}, recommendations = [], collectionShelves = [], homeSubtitle = '', csrfToken = '', readBookIds = null, hasContinueData = false, listView = false }) {
   const isAuthenticated = Boolean(user);
   const loginHint = tp('home.loginHint', { login: `<a href="/login">${escapeHtml(t('nav.login'))}</a>` });
   const quoteInviting = !isAuthenticated || !hasContinueData;
@@ -51,6 +51,21 @@ export function renderHome({ user, stats, indexStatus, history = [], favoriteAut
       <div data-home-continue-grid>${renderSkeletonGrid(6)}</div>
     </section>`
     : '';
+  const collectionShelvesHtml = Array.isArray(collectionShelves) && collectionShelves.length
+    ? collectionShelves.map((sh) =>
+        renderHomeShelf({
+          title: tp('collections.shelfTitle', { title: sh.title }),
+          href: `/collections/${encodeURIComponent(sh.slug)}`,
+          items: sh.books || [],
+          type: 'books',
+          isAuthenticated,
+          showBatch: false,
+          user,
+          readBookIds,
+          listView
+        })
+      ).join('')
+    : '';
   const content = `
     ${subtitleText ? `<header class="home-page-intro"><p class="home-page-subtitle">${escapeHtml(subtitleText)}</p></header>` : ''}
     <section class="welcome-hero-banner home-reveal">
@@ -64,6 +79,7 @@ export function renderHome({ user, stats, indexStatus, history = [], favoriteAut
     ${renderHomeShelf({ title: t('home.shelfNew'), href: '/library/recent', items: sections.newest || [], type: 'books', isAuthenticated, showBatch: false, user, readBookIds, listView })}
     ${recommendationsShelf}
     ${continueShelf}
+    ${collectionShelvesHtml}
     `;
   return pageShell({ title: t('home.title'), content, user, stats, indexStatus, breadcrumbs: [{ label: t('nav.home') }], currentPath: '/', csrfToken, readBookIds });
 }
@@ -2038,4 +2054,189 @@ export function renderProfileSettings({
     </div>
   `;
   return pageShell({ title: t('profile.tabSettings'), content, user, stats, indexStatus, breadcrumbs: [{ label: t('profile.tabSettings') }], currentPath, csrfToken });
+}
+
+export function renderCollectionsList({ user, stats, indexStatus, collections = [], csrfToken = '' }) {
+  const breadcrumbs = [{ label: t('nav.home'), href: '/' }, { label: t('collections.title') }];
+  const cardsHtml = collections.length
+    ? collections.map((col) => {
+        const percent = Math.min(100, Math.max(0, col.percentMatched || 0));
+        const badgeText = tp('collections.badgeFound', { matched: col.matchedItems, total: col.totalItems });
+        const sourceHtml = col.source
+          ? `<span class="collection-source-tag">${col.url ? `<a href="${escapeHtml(col.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(col.source)}</a>` : escapeHtml(col.source)}</span>`
+          : '';
+        return `
+          <article class="collection-card">
+            <div class="collection-card-body">
+              <div class="collection-card-top">
+                <h3 class="collection-card-title"><a href="/collections/${escapeHtml(col.slug)}">${escapeHtml(col.title)}</a></h3>
+                ${sourceHtml}
+              </div>
+              ${col.description ? `<p class="collection-card-desc">${escapeHtml(col.description)}</p>` : ''}
+              <div class="collection-card-progress">
+                <div class="collection-progress-info">
+                  <span class="collection-progress-label">${escapeHtml(t('collections.foundInLibrary'))}: <strong>${escapeHtml(badgeText)}</strong></span>
+                  <span class="collection-progress-pct">${percent}%</span>
+                </div>
+                <div class="collection-progress-bar" role="progressbar" aria-valuenow="${percent}" aria-valuemin="0" aria-valuemax="100">
+                  <div class="collection-progress-fill" style="width: ${percent}%;"></div>
+                </div>
+              </div>
+            </div>
+            <div class="collection-card-footer">
+              <a href="/collections/${escapeHtml(col.slug)}" class="button primary">${escapeHtml(t('collections.showCollection'))}</a>
+            </div>
+          </article>
+        `;
+      }).join('')
+    : `<div class="empty-state">${escapeHtml(t('collections.empty'))}</div>`;
+
+  const content = `
+    <header class="page-header">
+      <h1>${escapeHtml(t('collections.title'))}</h1>
+      <p class="muted">${escapeHtml(t('collections.subtitle'))}</p>
+    </header>
+    <div class="collections-grid">
+      ${cardsHtml}
+    </div>
+  `;
+
+  return pageShell({ title: t('collections.title'), content, user, stats, indexStatus, breadcrumbs, currentPath: '/collections', csrfToken });
+}
+
+export function renderCollectionDetail({ user, stats, indexStatus, collection, items = [], statsData, activeFilter = 'all', csrfToken = '', readBookIds = null, listView = false }) {
+  const percent = Math.min(100, Math.max(0, statsData.percent || 0));
+  const breadcrumbs = [
+    { label: t('nav.home'), href: '/' },
+    { label: t('collections.title'), href: '/collections' },
+    { label: collection.title }
+  ];
+
+  const sourceLink = collection.url
+    ? `<a href="${escapeHtml(collection.url)}" target="_blank" rel="noopener noreferrer" class="collection-source-link">🔗 ${escapeHtml(collection.source || t('collections.sourceLink'))}</a>`
+    : (collection.source ? `<span class="muted">${escapeHtml(collection.source)}</span>` : '');
+
+  const filterTabs = `
+    <div class="view-switcher collection-filters">
+      <a class="button view-switcher-link${activeFilter === 'all' ? ' is-active' : ''}" href="/collections/${escapeHtml(collection.slug)}?filter=all">${escapeHtml(tp('collections.filterAll', { count: statsData.total }))}</a>
+      <a class="button view-switcher-link${activeFilter === 'matched' ? ' is-active' : ''}" href="/collections/${escapeHtml(collection.slug)}?filter=matched">${escapeHtml(tp('collections.filterMatched', { count: statsData.matched }))}</a>
+      <a class="button view-switcher-link${activeFilter === 'missing' ? ' is-active' : ''}" href="/collections/${escapeHtml(collection.slug)}?filter=missing">${escapeHtml(tp('collections.filterMissing', { count: statsData.missing }))}</a>
+    </div>
+  `;
+
+  const viewSwitcher = renderViewModeSwitcher({
+    currentView: listView ? 'list' : 'grid',
+    baseUrl: `/collections/${escapeHtml(collection.slug)}?filter=${encodeURIComponent(activeFilter)}`
+  });
+
+  const matchedBooks = items.filter((it) => it.isMatched && it.book).map((it) => it.book);
+
+  let itemsHtml = '';
+  if (!items.length) {
+    itemsHtml = `<div class="empty-state">${escapeHtml(t('collections.noBooksFound'))}</div>`;
+  } else if (activeFilter === 'matched') {
+    itemsHtml = listView
+      ? renderBookFlibustaList(matchedBooks, { user })
+      : renderBookGrid(matchedBooks, { isAuthenticated: Boolean(user), user, readBookIds });
+  } else {
+    if (listView) {
+      itemsHtml = `
+        <ul class="author-flibusta-list collection-items-list">
+          ${items.map((it) => {
+            if (it.isMatched && it.book) {
+              const b = it.book;
+              const readBtn = `<a class="button author-flibusta-read" href="${readPagePath(b.id)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t('book.read'))}</a>`;
+              const dl = canDownloadInUi(user) ? `<span class="author-flibusta-dl">${renderDownloadMenu(b, { compact: true, user })}</span>` : '';
+              return `
+                <li class="author-flibusta-book" ${bookCardDataAttrs(b.id)}>
+                  <span class="author-flibusta-no">${it.position}</span>
+                  <a class="author-flibusta-title" href="${bookPagePath(b.id)}">${escapeHtml(b.title)}</a>
+                  <span class="author-flibusta-author muted">${escapeHtml(b.authors || it.author)}</span>
+                  <span class="muted author-flibusta-meta">${escapeHtml(String(b.ext || 'fb2').toUpperCase())}</span>
+                  <span class="author-flibusta-actions">${readBtn}${dl}</span>
+                </li>
+              `;
+            } else {
+              return `
+                <li class="author-flibusta-book author-flibusta-book--missing">
+                  <span class="author-flibusta-no">${it.position}</span>
+                  <span class="author-flibusta-title muted">${escapeHtml(it.title)}</span>
+                  <span class="author-flibusta-author muted">${escapeHtml(it.author)}</span>
+                  <span class="badge badge--missing" title="${escapeHtml(t('collections.missingDesc'))}">${escapeHtml(t('collections.missingBadge'))}</span>
+                </li>
+              `;
+            }
+          }).join('')}
+        </ul>
+      `;
+    } else {
+      itemsHtml = `
+        <div class="grid">
+          ${items.map((it) => {
+            if (it.isMatched && it.book) {
+              const b = it.book;
+              const cardDl = renderDownloadMenu(b, { compact: true, user });
+              return `
+                <article class="card" ${bookCardDataAttrs(b.id)}>
+                  ${renderCover(b, { readBookIds })}
+                  <div class="meta">
+                    <h3><a href="${bookPagePath(b.id)}">${it.position}. ${escapeHtml(b.title)}</a></h3>
+                    <div class="author">${escapeHtml(b.authors || it.author)}</div>
+                    ${cardDl ? `<div class="card-actions">${cardDl}</div>` : ''}
+                  </div>
+                </article>
+              `;
+            } else {
+              return `
+                <article class="card card--missing">
+                  <div class="card-missing-cover">
+                    <span class="missing-cover-icon">📖</span>
+                    <span class="badge badge--missing">${escapeHtml(t('collections.missingBadge'))}</span>
+                  </div>
+                  <div class="meta">
+                    <h3><span class="muted">${it.position}. ${escapeHtml(it.title)}</span></h3>
+                    <div class="author muted">${escapeHtml(it.author)}</div>
+                    ${it.note ? `<div class="card-missing-note muted">${escapeHtml(it.note)}</div>` : ''}
+                  </div>
+                </article>
+              `;
+            }
+          }).join('')}
+        </div>
+      `;
+    }
+  }
+
+  const content = `
+    <div class="collection-detail-header">
+      <div class="collection-detail-nav">
+        <a href="/collections" class="back-link">${escapeHtml(t('collections.backToList'))}</a>
+      </div>
+      <div class="collection-detail-main">
+        <h1>${escapeHtml(collection.title)}</h1>
+        ${sourceLink ? `<div class="collection-detail-source">${sourceLink}</div>` : ''}
+        ${collection.description ? `<p class="collection-detail-desc">${escapeHtml(collection.description)}</p>` : ''}
+      </div>
+      <div class="collection-detail-progress-card">
+        <div class="collection-progress-info">
+          <span class="collection-progress-label">${escapeHtml(t('collections.foundInLibrary'))}: <strong>${escapeHtml(tp('collections.badgeFound', { matched: statsData.matched, total: statsData.total }))}</strong></span>
+          <span class="collection-progress-pct">${percent}%</span>
+        </div>
+        <div class="collection-progress-bar" role="progressbar" aria-valuenow="${percent}" aria-valuemin="0" aria-valuemax="100">
+          <div class="collection-progress-fill" style="width: ${percent}%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="catalog-toolbar">
+      ${filterTabs}
+      ${viewSwitcher}
+    </div>
+
+    <div class="collection-items-container">
+      ${itemsHtml}
+    </div>
+  `;
+
+  return pageShell({ title: collection.title, content, user, stats, indexStatus, breadcrumbs, currentPath: `/collections/${collection.slug}`, csrfToken });
 }

@@ -798,6 +798,7 @@ function renderSidebarNavigation(user, currentPath = '/', stats = null) {
     <div class="sidenav-links">
       ${link('/', t('nav.home'), true)}
       ${link('/catalog', t('nav.catalog'), true)}
+      ${link('/collections', t('nav.collections'), true)}
       ${link('/library/recent', t('nav.recent'), true)}
       ${user ? link('/library/recommended', t('nav.recommended'), true) : ''}
       ${link('/authors', t('nav.authors'), true)}
@@ -1512,6 +1513,7 @@ function renderAdminSidebar(currentPath = '/admin', { user = null, csrfToken = '
         <div class="sidenav-links">
           ${link('/admin', t('admin.nav.dashboard'), true)}
           ${link('/admin/sources', t('admin.nav.sources'))}
+          ${link('/admin/collections', t('admin.nav.collections'))}
           ${link('/admin/duplicates', t('admin.nav.duplicates'))}
           ${link('/admin/content', t('admin.nav.content'))}
           ${link('/admin/users', t('admin.nav.users'))}

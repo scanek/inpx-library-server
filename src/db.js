@@ -272,6 +272,44 @@ function ensureAppPairingSchema() {
   `);
 }
 
+export function ensureCollectionsSchema() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS book_collections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      slug TEXT UNIQUE NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT DEFAULT '',
+      source TEXT DEFAULT '',
+      url TEXT DEFAULT '',
+      cover_url TEXT DEFAULT '',
+      is_builtin INTEGER DEFAULT 0,
+      is_enabled INTEGER DEFAULT 1,
+      display_order INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS collection_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      collection_id INTEGER NOT NULL,
+      position INTEGER DEFAULT 0,
+      author TEXT NOT NULL,
+      title TEXT NOT NULL,
+      year INTEGER,
+      isbn TEXT DEFAULT '',
+      note TEXT DEFAULT '',
+      matched_book_id TEXT,
+      matched_at TEXT,
+      FOREIGN KEY (collection_id) REFERENCES book_collections(id) ON DELETE CASCADE,
+      FOREIGN KEY (matched_book_id) REFERENCES books(id) ON DELETE SET NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_book_collections_slug ON book_collections(slug);
+    CREATE INDEX IF NOT EXISTS idx_collection_items_coll_pos ON collection_items(collection_id, position);
+    CREATE INDEX IF NOT EXISTS idx_collection_items_matched ON collection_items(matched_book_id);
+  `);
+}
+
 
 function dedupeTelegramIds() {
   const duplicateIds = db.prepare(`
@@ -1618,6 +1656,7 @@ WHERE rp.progress >= 99
   ensurePasswordResetSchema();
   ensureAppPairingSchema();
   ensureBooksSchema();
+  ensureCollectionsSchema();
   db.exec(`
     CREATE TABLE IF NOT EXISTS library_dedup_projection (
       dedup_key TEXT PRIMARY KEY,

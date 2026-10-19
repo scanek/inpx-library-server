@@ -59,6 +59,14 @@ import {
   rebuildTitleTokenDictionary
 } from '../inpx.js';
 import {
+  listCollections,
+  toggleCollection,
+  deleteCollection,
+  rematchCollection,
+  rematchAllCollections,
+  importCollection
+} from '../services/collections.js';
+import {
   detectFlibustaSidecarLayout, resolveLibraryArchiveRelPath, resolveSidecarArchivePath,
   coverPrimaryKeysForBook, flibustaAuthorKeyCandidates,
   readFlibustaAuthorPortraitBuffer, readFlibustaBookReviewHtml,
@@ -194,7 +202,7 @@ export function registerAdminRoutes(app, deps) {
     templates: {
       renderOperations, renderAdminUsers, renderAdminUpdate, renderAdminSmtp,
       renderAdminTelegram, renderAdminEvents, renderAdminSources, renderAdminDuplicates, renderAdminContent,
-      renderAdminAppearance
+      renderAdminAppearance, renderAdminCollections
     }
   } = deps;
 
@@ -2034,6 +2042,81 @@ export function registerAdminRoutes(app, deps) {
         admin: req.user.username, error: error.message
       });
       res.redirect('/admin/content?flash=' + encodeURIComponent(error.message));
+    }
+  });
+
+  // --- Admin Collections ---
+  app.get('/admin/collections', requireAdminWeb, (req, res) => {
+    const stats = getCachedStats();
+    const indexStatus = getIndexStatus();
+    const collections = listCollections();
+    const notice = req.query.notice ? String(req.query.notice) : '';
+    const error = req.query.error ? String(req.query.error) : '';
+    const html = renderAdminCollections({
+      user: req.user,
+      stats,
+      indexStatus,
+      collections,
+      notice,
+      error,
+      csrfToken: req.csrfToken || ''
+    });
+    res.send(html);
+  });
+
+  app.post('/admin/collections/:id/toggle', requireAdminWeb, (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const enabled = req.body.enabled === '1';
+      toggleCollection(id, enabled);
+      logSystemEvent('info', 'admin', `collection ${id} toggled ${enabled ? 'on' : 'off'}`, { admin: req.user.username });
+      res.redirect('/admin/collections?notice=' + encodeURIComponent('Статус подборки обновлен'));
+    } catch (err) {
+      res.redirect('/admin/collections?error=' + encodeURIComponent(err.message));
+    }
+  });
+
+  app.post('/admin/collections/:id/rematch', requireAdminWeb, (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const matched = rematchCollection(id, { force: true });
+      res.redirect('/admin/collections?notice=' + encodeURIComponent(`Пересопоставлено. Найдено книг: ${matched}`));
+    } catch (err) {
+      res.redirect('/admin/collections?error=' + encodeURIComponent(err.message));
+    }
+  });
+
+  app.post('/admin/collections/rematch-all', requireAdminWeb, (req, res) => {
+    try {
+      const result = rematchAllCollections({ force: true });
+      logSystemEvent('info', 'admin', 'all collections rematched', { admin: req.user.username, result });
+      res.redirect('/admin/collections?notice=' + encodeURIComponent(tp('admin.collections.rematchSuccess', { count: result.totalMatched })));
+    } catch (err) {
+      res.redirect('/admin/collections?error=' + encodeURIComponent(err.message));
+    }
+  });
+
+  app.post('/admin/collections/import', requireAdminWeb, (req, res) => {
+    try {
+      const rawJson = String(req.body.json || '').trim();
+      if (!rawJson) throw new Error('JSON подборки не может быть пустым');
+      const data = JSON.parse(rawJson);
+      importCollection(data, { isBuiltin: 0 });
+      logSystemEvent('info', 'admin', `collection imported: ${data.slug || data.title}`, { admin: req.user.username });
+      res.redirect('/admin/collections?notice=' + encodeURIComponent('Подборка успешно импортирована'));
+    } catch (err) {
+      res.redirect('/admin/collections?error=' + encodeURIComponent(`Ошибка импорта: ${err.message}`));
+    }
+  });
+
+  app.post('/admin/collections/:id/delete', requireAdminWeb, (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      deleteCollection(id);
+      logSystemEvent('info', 'admin', `collection deleted: ${id}`, { admin: req.user.username });
+      res.redirect('/admin/collections?notice=' + encodeURIComponent('Подборка удалена'));
+    } catch (err) {
+      res.redirect('/admin/collections?error=' + encodeURIComponent(err.message));
     }
   });
 }

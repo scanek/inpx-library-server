@@ -23,6 +23,7 @@ import { requireBrowseAuth, requireBrowseOrOpds, requireWebAuth, requireAdminWeb
 import { getCachedPageData, getStaleOrSchedule, clearPageDataCache, invalidateUserPageCaches } from '../services/cache.js';
 import { logSystemEvent } from '../services/system-events.js';
 import { getRecommendedLibraryView, getHomeRecommendations, buildSimilarBooks } from '../services/recommendations.js';
+import { listCollections, getCollectionBySlug, getHomeCollectionsShelves } from '../services/collections.js';
 import { bookPagePath, apiBookPath } from '../utils/book-ref.js';
 import { safePage } from '../utils/safe-int.js';
 import {
@@ -258,7 +259,8 @@ export function registerLibraryRoutes(app, deps) {
     templates: {
       renderHome, renderCatalog, renderLibraryView, renderBrowsePage,
       renderFacetBooks, renderAuthorFacetPage, renderAuthorOutsideSeriesPage,
-      renderBook, renderFavorites, renderShelves, renderShelfDetail, renderReader
+      renderBook, renderFavorites, renderShelves, renderShelfDetail, renderReader,
+      renderCollectionsList, renderCollectionDetail
     }
   } = deps;
 
@@ -284,12 +286,13 @@ export function registerLibraryRoutes(app, deps) {
     const hasContinueData = username ? hasContinueBooks(username) : false;
     const readBookIds = username ? getReadBookIdSet(username) : null;
     const listView = isListBrowseView({ username, queryView: req.query.view, scope: 'home' });
-    const canUseAnonymousHomeHtmlCache = !user && !listView && !indexStatus?.active && !indexStatus?.error;
+    const collectionShelves = getHomeCollectionsShelves({ maxShelves: 3, booksPerShelf: 16 });
+    const canUseAnonymousHomeHtmlCache = !user && !listView && !indexStatus?.active && !indexStatus?.error && !collectionShelves.length;
     const csrfToken = req.csrfToken || '';
     const homeSubtitle = getSetting('home_subtitle') || '';
     const html = canUseAnonymousHomeHtmlCache
-      ? getCachedPageData(`page:home:anon:${getLocale()}`, () => renderHome({ user, stats, indexStatus, sections: displaySections, homeSubtitle, csrfToken: '', hasContinueData: false, listView: false }), 1000 * 60 * 2)
-      : renderHome({ user, stats, indexStatus, sections: displaySections, homeSubtitle, csrfToken, hasContinueData, readBookIds, listView });
+      ? getCachedPageData(`page:home:anon:${getLocale()}`, () => renderHome({ user, stats, indexStatus, sections: displaySections, collectionShelves, homeSubtitle, csrfToken: '', hasContinueData: false, listView: false }), 1000 * 60 * 2)
+      : renderHome({ user, stats, indexStatus, sections: displaySections, collectionShelves, homeSubtitle, csrfToken, hasContinueData, readBookIds, listView });
     res.send(html);
     // Фоновый прогрев per-user кэшей для последующих переходов
     if (username) {
@@ -504,6 +507,50 @@ export function registerLibraryRoutes(app, deps) {
       computing: Boolean(result.computing),
       userStats
     }));
+  });
+
+  // --- Collections ---
+  app.get('/collections', requireBrowseAuth, (req, res) => {
+    const stats = getCachedStats();
+    const user = req.user || null;
+    const indexStatus = getIndexStatus();
+    const collections = listCollections({ onlyEnabled: true });
+    const html = renderCollectionsList({
+      user,
+      stats,
+      indexStatus,
+      collections,
+      csrfToken: req.csrfToken || ''
+    });
+    res.send(html);
+  });
+
+  app.get('/collections/:slug', requireBrowseAuth, (req, res) => {
+    const stats = getCachedStats();
+    const user = req.user || null;
+    const username = user?.username || '';
+    const indexStatus = getIndexStatus();
+    const slug = String(req.params.slug || '').trim();
+    const filter = String(req.query.filter || 'all').toLowerCase();
+    const collectionData = getCollectionBySlug(slug, { filter });
+    if (!collectionData) {
+      return res.status(404).send(t('collections.empty'));
+    }
+    const readBookIds = username ? getReadBookIdSet(username) : null;
+    const listView = isListBrowseView({ username, queryView: req.query.view, scope: 'collection' });
+    const html = renderCollectionDetail({
+      user,
+      stats,
+      indexStatus,
+      collection: collectionData.collection,
+      items: collectionData.items,
+      statsData: collectionData.stats,
+      activeFilter: filter,
+      csrfToken: req.csrfToken || '',
+      readBookIds,
+      listView
+    });
+    res.send(html);
   });
 
   // --- Browse pages ---

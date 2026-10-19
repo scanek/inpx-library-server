@@ -1750,6 +1750,7 @@ export function startBackgroundIndexing(force = false, incremental = true) {
         clearClusterIndexState();
         await refreshCatalogBookCounts();
         invalidateAllRecommendations();
+        import('./services/collections.js').then((m) => m.rematchAllCollections()).catch(() => {});
         resetIndexControlState();
       } catch (err) {
         indexState.active = false;
@@ -1834,6 +1835,7 @@ export function startSourceIndexing(sourceId, force = false) {
         emitIndexCompleted();
         clearClusterIndexState();
         invalidateAllRecommendations();
+        import('./services/collections.js').then((m) => m.rematchAllCollections()).catch(() => {});
         resetIndexControlState();
       } catch (err) {
         indexState.active = false;

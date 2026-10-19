@@ -10634,3 +10634,209 @@ html[data-eink="1"] .topbar-lang-link.is-active {
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+/* ── Curated Collections & Showcases ── */
+.collections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+  margin-top: 16px;
+}
+
+.collection-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: var(--radius, 12px);
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.collection-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.collection-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.collection-card-title {
+  margin: 0;
+  font-size: 1.15rem;
+  line-height: 1.35;
+}
+
+.collection-card-title a {
+  color: var(--text-color, inherit);
+  text-decoration: none;
+}
+
+.collection-card-title a:hover {
+  color: var(--link, #2563eb);
+}
+
+.collection-source-tag {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-hover, #f3f4f6);
+  color: var(--muted, #6b7280);
+  white-space: nowrap;
+}
+
+.collection-source-tag a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.collection-card-desc {
+  font-size: 0.9rem;
+  color: var(--muted, #6b7280);
+  line-height: 1.45;
+  margin: 0 0 16px;
+  flex-grow: 1;
+}
+
+.collection-card-progress {
+  margin-bottom: 16px;
+  background: var(--bg-hover, #f9fafb);
+  padding: 10px 12px;
+  border-radius: 8px;
+}
+
+.collection-progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+
+.collection-progress-pct {
+  font-weight: 600;
+  color: var(--accent, #3b82f6);
+}
+
+.collection-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--border, #e5e7eb);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.collection-progress-fill {
+  height: 100%;
+  background: var(--accent, #3b82f6);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.collection-card-footer {
+  margin-top: auto;
+}
+
+.collection-card-footer .button {
+  width: 100%;
+  text-align: center;
+  justify-content: center;
+}
+
+.collection-detail-header {
+  margin-bottom: 24px;
+}
+
+.collection-detail-nav {
+  margin-bottom: 12px;
+}
+
+.collection-detail-main h1 {
+  margin: 0 0 6px;
+}
+
+.collection-detail-source {
+  margin-bottom: 8px;
+}
+
+.collection-source-link {
+  font-size: 0.85rem;
+  color: var(--link, #2563eb);
+  text-decoration: none;
+}
+
+.collection-detail-desc {
+  font-size: 1rem;
+  color: var(--muted, #6b7280);
+  margin: 0 0 16px;
+  max-width: 800px;
+}
+
+.collection-detail-progress-card {
+  background: var(--card-bg, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: var(--radius, 12px);
+  padding: 14px 18px;
+  max-width: 480px;
+}
+
+.collection-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Missing books representation */
+.card--missing {
+  opacity: 0.85;
+  border: 1px dashed var(--border, #d1d5db);
+  background: var(--bg-hover, #fafafa);
+}
+
+.card--missing:hover {
+  opacity: 1;
+}
+
+.card-missing-cover {
+  aspect-ratio: 2/3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--bg-hover, #f3f4f6);
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.missing-cover-icon {
+  font-size: 2rem;
+  opacity: 0.4;
+}
+
+.badge--missing {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(234, 88, 12, 0.12);
+  color: #ea580c;
+  font-weight: 500;
+  border: 1px solid rgba(234, 88, 12, 0.25);
+}
+
+.card-missing-note {
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
+.author-flibusta-book--missing {
+  opacity: 0.75;
+  background: rgba(0, 0, 0, 0.02);
+}

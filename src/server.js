@@ -89,11 +89,17 @@ import {
   renderAdminUpdate,
   renderAdminSources,
   renderAdminAppearance,
+  renderAdminCollections,
   renderReader,
   renderMaintenance,
+  renderCollectionsList,
+  renderCollectionDetail,
   setSiteName,
   setAllowAnonymousDownload
 } from './templates.js';
+import { initCollections } from './services/collections.js';
+
+initCollections();
 
 mirrorIndexingLogsToDataFile();
 installRuntimeLogCapture();
@@ -974,7 +980,8 @@ registerLibraryRoutes(app, {
   templates: {
     renderHome, renderCatalog, renderSearchOverview, renderLibraryView, renderBrowsePage,
     renderFacetBooks, renderAuthorFacetPage, renderAuthorOutsideSeriesPage,
-    renderBook, renderFavorites, renderShelves, renderShelfDetail, renderReader
+    renderBook, renderFavorites, renderShelves, renderShelfDetail, renderReader,
+    renderCollectionsList, renderCollectionDetail
   }
 });
 
@@ -1003,7 +1010,7 @@ registerAdminRoutes(app, {
   templates: {
     renderOperations, renderAdminUsers, renderAdminUpdate, renderAdminSmtp,
     renderAdminTelegram, renderAdminEvents, renderAdminSources, renderAdminDuplicates, renderAdminContent,
-    renderAdminAppearance
+    renderAdminAppearance, renderAdminCollections
   }
 });
 

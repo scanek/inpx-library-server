@@ -1905,3 +1905,133 @@ export function renderAdminAppearance({
     csrfToken
   });
 }
+
+export function renderAdminCollections({ user, stats, indexStatus, collections = [], notice = '', error = '', csrfToken = '' }) {
+  const alertHtml = notice
+    ? renderAlert('success', notice)
+    : error
+      ? renderAlert('danger', error)
+      : '';
+
+  const rows = collections.map((col) => {
+    const percent = Math.min(100, Math.max(0, col.percentMatched || 0));
+    const badgeType = col.isBuiltin
+      ? `<span class="badge" style="background:rgba(59,130,246,0.15);color:#3b82f6;">${escapeHtml(t('admin.collections.builtinBadge'))}</span>`
+      : `<span class="badge" style="background:rgba(16,185,129,0.15);color:#10b981;">${escapeHtml(t('admin.collections.customBadge'))}</span>`;
+
+    const toggleBtn = `
+      <form action="/admin/collections/${col.id}/toggle" method="post" class="admin-inline-form">
+        ${csrfHiddenField(csrfToken)}
+        <input type="hidden" name="enabled" value="${col.isEnabled ? '0' : '1'}">
+        <button type="submit" class="button button--small ${col.isEnabled ? 'button-success' : 'button-muted'}">
+          ${col.isEnabled ? '✓ Включена' : '✕ Отключена'}
+        </button>
+      </form>
+    `;
+
+    const deleteBtn = !col.isBuiltin
+      ? `
+        <form action="/admin/collections/${col.id}/delete" method="post" class="admin-inline-form" data-confirm="${escapeHtml(t('admin.collections.deleteConfirm'))}" data-confirm-danger>
+          ${csrfHiddenField(csrfToken)}
+          <button type="submit" class="button button--small button-danger">${escapeHtml(t('admin.delete'))}</button>
+        </form>
+      `
+      : '';
+
+    return `
+      <tr>
+        <td>
+          <strong><a href="/collections/${escapeHtml(col.slug)}" target="_blank">${escapeHtml(col.title)}</a></strong>
+          <div class="muted" style="font-size:12px;margin-top:2px;">slug: <code>${escapeHtml(col.slug)}</code>${col.source ? ` · ${escapeHtml(col.source)}` : ''}</div>
+        </td>
+        <td>${badgeType}</td>
+        <td>${col.matchedItems} / ${col.totalItems}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div class="collection-progress-bar" style="width:80px;height:8px;background:var(--border-color, #e5e7eb);border-radius:4px;overflow:hidden;">
+              <div style="width:${percent}%;height:100%;background:var(--accent-color, #3b82f6);"></div>
+            </div>
+            <span>${percent}%</span>
+          </div>
+        </td>
+        <td>${toggleBtn}</td>
+        <td>
+          <div class="admin-actions-cell">
+            <form action="/admin/collections/${col.id}/rematch" method="post" class="admin-inline-form">
+              ${csrfHiddenField(csrfToken)}
+              <button type="submit" class="button button--small" title="Пересопоставить">${escapeHtml(t('collections.rematch'))}</button>
+            </form>
+            ${deleteBtn}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  const content = `
+    <div class="admin-page">
+      <div class="admin-header-row">
+        <div>
+          <h1>${escapeHtml(t('admin.collections.title'))}</h1>
+          <p class="muted">${escapeHtml(t('admin.collections.subtitle'))}</p>
+        </div>
+        <div class="admin-header-actions">
+          <form action="/admin/collections/rematch-all" method="post">
+            ${csrfHiddenField(csrfToken)}
+            <button type="submit" class="button button-primary">🔄 ${escapeHtml(t('admin.collections.rematchAll'))}</button>
+          </form>
+        </div>
+      </div>
+
+      ${alertHtml}
+
+      <div class="admin-card">
+        <h2>Подборки в системе (${collections.length})</h2>
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Название</th>
+                <th>Тип</th>
+                <th>В наличии</th>
+                <th>Покрытие</th>
+                <th>Статус</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || '<tr><td colspan="6" class="muted">Подборок пока нет</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="admin-card" style="margin-top:24px;">
+        <h2>${escapeHtml(t('admin.collections.importTitle'))}</h2>
+        <p class="muted" style="margin-bottom:12px;">${escapeHtml(t('admin.collections.importHelp'))}</p>
+        <form action="/admin/collections/import" method="post" class="vertical-form">
+          ${csrfHiddenField(csrfToken)}
+          <div class="admin-field-group">
+            <label for="collection-json">JSON подборки</label>
+            <textarea id="collection-json" name="json" rows="10" placeholder='{\n  "slug": "my-books",\n  "title": "Моя подборка",\n  "description": "Описание",\n  "items": [\n    "Автор — Название",\n    { "author": "Автор", "title": "Название", "year": 2020 }\n  ]\n}' required style="font-family:monospace;font-size:13px;"></textarea>
+          </div>
+          <div class="admin-actions-row">
+            <button type="submit" class="button button-primary">${escapeHtml(t('admin.collections.importBtn'))}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+
+  return pageShell({
+    title: t('admin.collections.title'),
+    content,
+    user,
+    stats,
+    indexStatus,
+    breadcrumbs: [{ label: t('admin.collections.title') }],
+    mode: 'admin',
+    currentPath: '/admin/collections',
+    csrfToken
+  });
+}
